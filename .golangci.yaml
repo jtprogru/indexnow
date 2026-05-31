@@ -1,0 +1,122 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - contextcheck
+    - copyloopvar
+    - dupword
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exptostd
+    - fatcontext
+    - funcorder
+    - gochecknoglobals
+    - gochecknoinits
+    - gochecksumtype
+    - gocritic
+    - godot
+    - gomoddirectives
+    - gosec
+    - gosmopolitan
+    - govet
+    - iface
+    - inamedparam
+    - ineffassign
+    - intrange
+    - mirror
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - perfsprint
+    - prealloc
+    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
+    - recvcheck
+    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    - testifylint
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - zerologlint
+  exclusions:
+    generated: strict
+    warn-unused: false
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
+    rules:
+      # Cobra command files use package-level vars/init by design.
+      - path: cmd/.*\.go
+        linters:
+          - gochecknoglobals
+          - gochecknoinits
+      # Compiled regexes and endpoint alias maps are intentional package-level state.
+      - path: internal/client/client\.go
+        linters:
+          - gochecknoglobals
+      - path: internal/client/endpoints\.go
+        linters:
+          - gochecknoglobals
+      # Exclude some linters from running on tests files.
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+      # Run some linter only for test files by excluding its issues for everything else.
+      - path-except: _test\.go
+        linters:
+          - forbidigo
+      - linters:
+          - staticcheck
+        text: "SA9003:"
+      - linters:
+          - lll
+        source: "^//go:generate "
+
+formatters:
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/jtprogru/indexnow)
+        - blank
+        - dot
+        - alias
+        - localmodule
+      no-inline-comments: true
+      no-prefix-comments: true
+      custom-order: true
+      no-lex-order: true
