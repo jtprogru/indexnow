@@ -11,6 +11,7 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 ### Added
 
 - `--verbose` / `-v` flag for `submit`: emit `slog` text-format lifecycle and retry events to stderr (`submit` start, per-batch `submit batch`, `retry` at WARN with status/transport reason and backoff, per-endpoint `batch complete`). stdout is untouched, so `-v` composes with `-q` and with `--output json` for log-shipping setups. By default the client uses `slog.DiscardHandler`, so library users and the no-flag CLI mode emit nothing.
+- New subcommand `indexnow verify`: HTTP `GET` the hosted key file and check its trimmed body equals `--key`. URL is either `--key-location` (explicit) or derived from `--host` + `--key` (`https://<host>/<key>.txt`). Supports `--config`, `--user-agent`, `--output text|json`, `-q`, `-v`, `--timeout`. Exit `0` on match, `1` on mismatch/non-200/network error, `2` on usage error.
 
 ### Changed
 

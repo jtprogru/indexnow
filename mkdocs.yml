@@ -92,6 +92,7 @@ nav:
   - Commands:
       - Overview: commands/index.md
       - indexnow submit: commands/submit.md
+      - indexnow verify: commands/verify.md
   - Guides:
       - Endpoints: guides/endpoints.md
       - Configuration: guides/configuration.md

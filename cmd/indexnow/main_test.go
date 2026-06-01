@@ -123,6 +123,41 @@ func TestApplyDefaults_PreservesUserAgent(t *testing.T) {
 	}
 }
 
+func TestApplyVerifyConfig_FillsEmptyFromFile(t *testing.T) {
+	isolateXDG(t)
+	path := writeConfig(t, "host: cfg.example\nkey: cfg-key\nkey_location: https://cfg.example/k.txt\nuser_agent: cfg-ua/1.0\n")
+	opts := cli.VerifyOptions{}
+	if err := applyVerifyConfig(&opts, path); err != nil {
+		t.Fatalf("applyVerifyConfig: %v", err)
+	}
+	if opts.Host != "cfg.example" || opts.Key != "cfg-key" || opts.KeyLocation != "https://cfg.example/k.txt" || opts.UserAgent != "cfg-ua/1.0" {
+		t.Fatalf("got %+v", opts)
+	}
+}
+
+func TestApplyVerifyConfig_FlagWinsOverConfig(t *testing.T) {
+	isolateXDG(t)
+	path := writeConfig(t, "host: cfg.example\nkey: cfg-key\n")
+	opts := cli.VerifyOptions{Key: "flag-key"}
+	if err := applyVerifyConfig(&opts, path); err != nil {
+		t.Fatal(err)
+	}
+	if opts.Key != "flag-key" || opts.Host != "cfg.example" {
+		t.Fatalf("got %+v", opts)
+	}
+}
+
+func TestApplyVerifyDefaults_SetsUA(t *testing.T) {
+	prev := Version
+	Version = "9.9.9"
+	t.Cleanup(func() { Version = prev })
+	opts := cli.VerifyOptions{}
+	applyVerifyDefaults(&opts)
+	if opts.UserAgent != "indexnow/9.9.9" {
+		t.Fatalf("got %q", opts.UserAgent)
+	}
+}
+
 func TestApplyConfig_DefaultPathIsRespected(t *testing.T) {
 	xdg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", xdg)

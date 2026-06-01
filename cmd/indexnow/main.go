@@ -50,6 +50,7 @@ search engine — you only need to call one.`,
 	root.SetVersionTemplate("indexnow {{.Version}}\n")
 
 	root.AddCommand(newSubmitCmd(ctx))
+	root.AddCommand(newVerifyCmd(ctx))
 	root.SetArgs(args)
 
 	if err := root.Execute(); err != nil {
@@ -118,26 +119,37 @@ Examples:
 	return cmd
 }
 
-// applyConfig fills any SubmitOptions fields still at their zero/default
-// value from the yaml config file. Precedence: flag > env > config > default,
-// so this runs after applyEnvDefaults. An explicit --config that points to
-// a missing file is a usage error; the default XDG path is silently skipped
-// when absent.
-func applyConfig(opts *cli.SubmitOptions, explicitPath string) error {
+// loadConfig resolves the yaml config path (explicit or XDG default) and
+// reads it. An explicit path that points to a missing file is an error
+// (--config typo'd); the default path silently returns a zero Config when
+// absent, so users without a config file see no surprise and callers can
+// merge unconditionally.
+func loadConfig(explicitPath string) (*config.Config, error) {
 	path := explicitPath
 	explicit := path != ""
 	if !explicit {
 		path = config.DefaultPath()
 		if path == "" {
-			return nil
+			return &config.Config{}, nil
 		}
 	}
 	cfg, err := config.Load(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) && !explicit {
-			return nil
+			return &config.Config{}, nil
 		}
-		return fmt.Errorf("config: %w", err)
+		return nil, fmt.Errorf("config: %w", err)
+	}
+	return cfg, nil
+}
+
+// applyConfig fills any SubmitOptions fields still at their zero/default
+// value from the yaml config file. Precedence: flag > env > config > default,
+// so this runs after applyEnvDefaults.
+func applyConfig(opts *cli.SubmitOptions, explicitPath string) error {
+	cfg, err := loadConfig(explicitPath)
+	if err != nil {
+		return err
 	}
 	if opts.Key == "" {
 		opts.Key = cfg.Key
@@ -179,6 +191,89 @@ func applyEnvDefaults(opts *cli.SubmitOptions) {
 // (flag, env, config) filled. Currently only UserAgent benefits — the
 // stdlib's "Go-http-client/1.1" is unhelpful for proxied setups and WAFs.
 func applyDefaults(opts *cli.SubmitOptions) {
+	if opts.UserAgent == "" {
+		opts.UserAgent = "indexnow/" + Version
+	}
+}
+
+func newVerifyCmd(ctx context.Context) *cobra.Command {
+	opts := cli.VerifyOptions{}
+	var configPath string
+	cmd := &cobra.Command{
+		Use:   "verify",
+		Short: "Verify that the hosted IndexNow key file matches the expected key",
+		Long: `verify performs the same check participating endpoints do:
+fetch the hosted key file via HTTP GET and confirm its trimmed body equals
+the expected key.
+
+If --key-location is set, that URL is fetched. Otherwise the conventional
+location https://<host>/<key>.txt is used (requires --host and a valid --key).
+
+Exit 0 if the hosted key matches; non-zero otherwise.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			applyVerifyEnv(&opts)
+			if err := applyVerifyConfig(&opts, configPath); err != nil {
+				fmt.Fprintln(cmd.ErrOrStderr(), err)
+				return exitCodeError(cli.ExitUsageError)
+			}
+			applyVerifyDefaults(&opts)
+			code := cli.RunVerify(ctx, opts, cmd.OutOrStdout(), cmd.ErrOrStderr(), nil)
+			if code != cli.ExitOK {
+				return exitCodeError(code)
+			}
+			return nil
+		},
+	}
+	f := cmd.Flags()
+	f.StringVar(&opts.Key, "key", "", "IndexNow key (env: INDEXNOW_KEY)")
+	f.StringVar(&opts.Host, "host", "", "site host, e.g. example.com (env: INDEXNOW_HOST)")
+	f.StringVar(&opts.KeyLocation, "key-location", "", "absolute URL to the hosted key file (env: INDEXNOW_KEY_LOCATION; default: https://<host>/<key>.txt)")
+	f.StringVar(&opts.UserAgent, "user-agent", "", "HTTP User-Agent header (env: INDEXNOW_USER_AGENT; default: indexnow/<version>)")
+	f.StringVar(&opts.Output, "output", cli.OutputText, "output format: text|json")
+	f.BoolVarP(&opts.Quiet, "quiet", "q", false, "suppress stdout; rely on exit code")
+	f.BoolVarP(&opts.Verbose, "verbose", "v", false, "log lifecycle events to stderr (slog text format)")
+	f.DurationVar(&opts.Timeout, "timeout", 10*time.Second, "HTTP timeout for the key fetch")
+	f.StringVar(&configPath, "config", "", "path to yaml config (default: $XDG_CONFIG_HOME/indexnow/config.yaml)")
+	return cmd
+}
+
+func applyVerifyEnv(opts *cli.VerifyOptions) {
+	if opts.Key == "" {
+		opts.Key = os.Getenv("INDEXNOW_KEY")
+	}
+	if opts.Host == "" {
+		opts.Host = os.Getenv("INDEXNOW_HOST")
+	}
+	if opts.KeyLocation == "" {
+		opts.KeyLocation = os.Getenv("INDEXNOW_KEY_LOCATION")
+	}
+	if opts.UserAgent == "" {
+		opts.UserAgent = os.Getenv("INDEXNOW_USER_AGENT")
+	}
+}
+
+func applyVerifyConfig(opts *cli.VerifyOptions, explicitPath string) error {
+	cfg, err := loadConfig(explicitPath)
+	if err != nil {
+		return err
+	}
+	if opts.Key == "" {
+		opts.Key = cfg.Key
+	}
+	if opts.Host == "" {
+		opts.Host = cfg.Host
+	}
+	if opts.KeyLocation == "" {
+		opts.KeyLocation = cfg.KeyLocation
+	}
+	if opts.UserAgent == "" {
+		opts.UserAgent = cfg.UserAgent
+	}
+	return nil
+}
+
+func applyVerifyDefaults(opts *cli.VerifyOptions) {
 	if opts.UserAgent == "" {
 		opts.UserAgent = "indexnow/" + Version
 	}
