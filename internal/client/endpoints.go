@@ -37,3 +37,32 @@ func ResolveEndpoint(nameOrURL string) (string, error) {
 	}
 	return "", ErrUnknownEndpoint
 }
+
+// ResolveEndpoints accepts a comma-separated spec ("bing,yandex" or a single
+// alias or URL) and returns the resolved URLs in input order with duplicates
+// removed. Whitespace around items is trimmed. An empty or fully-blank spec,
+// or any unresolvable item, returns an error.
+func ResolveEndpoints(spec string) ([]string, error) {
+	parts := strings.Split(spec, ",")
+	out := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		ep, err := ResolveEndpoint(p)
+		if err != nil {
+			return nil, err
+		}
+		if _, dup := seen[ep]; dup {
+			continue
+		}
+		seen[ep] = struct{}{}
+		out = append(out, ep)
+	}
+	if len(out) == 0 {
+		return nil, ErrUnknownEndpoint
+	}
+	return out, nil
+}

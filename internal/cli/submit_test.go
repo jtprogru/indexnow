@@ -7,7 +7,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/jtprogru/indexnow/internal/client"
@@ -339,6 +341,170 @@ func TestRunSubmit_EndpointResolvedFromAlias(t *testing.T) {
 	}
 	if captured != client.EndpointBing {
 		t.Errorf("endpoint resolved: got %q, want %q", captured, client.EndpointBing)
+	}
+}
+
+// multiEndpointFactory routes each factory call to a per-endpoint fake.
+// Used by tests that exercise the parallel fan-out across endpoints.
+type multiEndpointFactory struct {
+	mu       sync.Mutex
+	fakes    map[string]*fakeSubmitter
+	initErrs map[string]error
+	seen     []string
+}
+
+func (m *multiEndpointFactory) factory() SubmitterFactory {
+	return func(c client.Config) (Submitter, error) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		m.seen = append(m.seen, c.Endpoint)
+		if err, ok := m.initErrs[c.Endpoint]; ok {
+			return nil, err
+		}
+		f, ok := m.fakes[c.Endpoint]
+		if !ok {
+			f = &fakeSubmitter{}
+			if m.fakes == nil {
+				m.fakes = map[string]*fakeSubmitter{}
+			}
+			m.fakes[c.Endpoint] = f
+		}
+		return f, nil
+	}
+}
+
+func (m *multiEndpointFactory) seenSorted() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := append([]string(nil), m.seen...)
+	sort.Strings(out)
+	return out
+}
+
+func TestRunSubmit_MultiEndpoint_FanOut(t *testing.T) {
+	mf := &multiEndpointFactory{
+		fakes: map[string]*fakeSubmitter{
+			client.EndpointBing:   {results: []*client.Result{{StatusCode: 200, Attempts: 1, URLs: []string{"https://example.com/a"}}}},
+			client.EndpointYandex: {results: []*client.Result{{StatusCode: 200, Attempts: 1, URLs: []string{"https://example.com/a"}}}},
+		},
+	}
+	opts := defaultOpts()
+	opts.Endpoint = "bing,yandex"
+	opts.Args = []string{"https://example.com/a"}
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, mf.factory())
+	if code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	got := mf.seenSorted()
+	want := []string{client.EndpointBing, client.EndpointYandex}
+	sort.Strings(want)
+	if !equalStrings(got, want) {
+		t.Fatalf("endpoints called: got %v want %v", got, want)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "endpoint="+client.EndpointBing) || !strings.Contains(out, "endpoint="+client.EndpointYandex) {
+		t.Fatalf("multi text output should prefix endpoint per line; got %q", out)
+	}
+}
+
+func TestRunSubmit_MultiEndpoint_JSON(t *testing.T) {
+	mf := &multiEndpointFactory{
+		fakes: map[string]*fakeSubmitter{
+			client.EndpointBing:   {results: []*client.Result{{StatusCode: 200, Attempts: 1, URLs: []string{"https://example.com/a"}}}},
+			client.EndpointYandex: {results: []*client.Result{{StatusCode: 202, Attempts: 2, URLs: []string{"https://example.com/a"}}}},
+		},
+	}
+	opts := defaultOpts()
+	opts.Endpoint = "bing,yandex"
+	opts.Output = OutputJSON
+	opts.Args = []string{"https://example.com/a"}
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, mf.factory())
+	if code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	var parsed []map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &parsed); err != nil {
+		t.Fatalf("not json: %v\n%s", err, stdout.String())
+	}
+	if len(parsed) != 2 {
+		t.Fatalf("expected 2 entries (one per endpoint), got %d: %s", len(parsed), stdout.String())
+	}
+	gotEndpoints := []string{parsed[0]["endpoint"].(string), parsed[1]["endpoint"].(string)}
+	sort.Strings(gotEndpoints)
+	want := []string{client.EndpointBing, client.EndpointYandex}
+	sort.Strings(want)
+	if !equalStrings(gotEndpoints, want) {
+		t.Fatalf("endpoints in json: got %v want %v", gotEndpoints, want)
+	}
+}
+
+func TestRunSubmit_MultiEndpoint_PartialFailure_AggregatesExit(t *testing.T) {
+	mf := &multiEndpointFactory{
+		fakes: map[string]*fakeSubmitter{
+			client.EndpointBing:   {results: []*client.Result{{StatusCode: 200, Attempts: 1, URLs: []string{"https://example.com/a"}}}},
+			client.EndpointYandex: {results: []*client.Result{{StatusCode: 503, Attempts: 3, URLs: []string{"https://example.com/a"}, Err: errors.New("svc unavail")}}},
+		},
+	}
+	opts := defaultOpts()
+	opts.Endpoint = "bing,yandex"
+	opts.FailOn = FailOnAny
+	opts.Args = []string{"https://example.com/a"}
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, mf.factory())
+	if code != ExitFailed {
+		t.Fatalf("one endpoint failing should fail aggregate; got code=%d", code)
+	}
+	if !strings.Contains(stdout.String(), client.EndpointBing) || !strings.Contains(stdout.String(), client.EndpointYandex) {
+		t.Fatalf("output should include both endpoints; got %q", stdout.String())
+	}
+}
+
+func TestRunSubmit_MultiEndpoint_FactoryErrorDoesNotKillOthers(t *testing.T) {
+	mf := &multiEndpointFactory{
+		fakes: map[string]*fakeSubmitter{
+			client.EndpointBing: {results: []*client.Result{{StatusCode: 200, Attempts: 1, URLs: []string{"https://example.com/a"}}}},
+		},
+		initErrs: map[string]error{
+			client.EndpointYandex: errors.New("dial tcp: timeout"),
+		},
+	}
+	opts := defaultOpts()
+	opts.Endpoint = "bing,yandex"
+	opts.FailOn = FailOnNever // ignore HTTP-status failures so we isolate factory-error path
+	opts.Args = []string{"https://example.com/a"}
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, mf.factory())
+	// Factory failure always counts as failure regardless of FailOn (it is a system-level error, not an HTTP outcome).
+	if code != ExitFailed {
+		t.Fatalf("factory failure should produce ExitFailed; got %d", code)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "ERROR") || !strings.Contains(out, client.EndpointYandex) {
+		t.Fatalf("output should include yandex factory error; got %q", out)
+	}
+	if !strings.Contains(out, "status=200") {
+		t.Fatalf("bing should still report success; got %q", out)
+	}
+}
+
+func TestRunSubmit_MultiEndpoint_DryRunListsAll(t *testing.T) {
+	opts := defaultOpts()
+	opts.Endpoint = "bing,yandex"
+	opts.DryRun = true
+	opts.Args = []string{"https://example.com/a"}
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, nil)
+	if code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "endpoints=") {
+		t.Fatalf("dry-run with multi should use endpoints= key; got %q", out)
+	}
+	if !strings.Contains(out, client.EndpointBing) || !strings.Contains(out, client.EndpointYandex) {
+		t.Fatalf("dry-run should list both endpoints; got %q", out)
 	}
 }
 

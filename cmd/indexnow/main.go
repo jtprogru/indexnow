@@ -100,7 +100,7 @@ Examples:
 	f.StringVar(&opts.Key, "key", "", "IndexNow key (env: INDEXNOW_KEY)")
 	f.StringVar(&opts.Host, "host", "", "site host, e.g. example.com (env: INDEXNOW_HOST; inferred from first URL if empty)")
 	f.StringVar(&opts.KeyLocation, "key-location", "", "absolute URL to the hosted key file (env: INDEXNOW_KEY_LOCATION)")
-	f.StringVar(&opts.Endpoint, "endpoint", "api", "endpoint: api|bing|yandex|naver|seznam|yep or full URL (env: INDEXNOW_ENDPOINT)")
+	f.StringVar(&opts.Endpoint, "endpoint", "api", "endpoint(s): comma-separated aliases (api|bing|yandex|naver|seznam|yep) or full URLs; multiple endpoints are submitted in parallel (env: INDEXNOW_ENDPOINT)")
 	f.StringVar(&opts.File, "file", "", "read URLs from file (one per line; # comments allowed)")
 	f.BoolVar(&opts.Stdin, "stdin", false, "read URLs from stdin")
 	f.BoolVar(&opts.DryRun, "dry-run", false, "print what would be sent and exit")

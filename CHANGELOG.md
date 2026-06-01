@@ -11,6 +11,7 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 ### Added
 
 - `--config <path>` flag for `submit`: load `host`, `key`, `key_location`, `endpoint` defaults from a yaml file. Default lookup at `$XDG_CONFIG_HOME/indexnow/config.yaml` (fallback `$HOME/.config/indexnow/config.yaml`). Precedence: flag > env > config > built-in default. Unknown fields rejected.
+- `--endpoint` accepts a comma-separated list and submits to every endpoint in parallel. Aliases and full URLs can be mixed; duplicates are removed while order is preserved. Single-endpoint output is unchanged; multi-endpoint text output prefixes each line with `endpoint=<url>`, JSON output emits one entry per endpoint × batch. Endpoint-level errors (factory init, transport failure) always produce a non-zero exit even under `--fail-on=never`.
 
 ### Changed
 

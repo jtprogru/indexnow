@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jtprogru/indexnow/internal/client"
@@ -93,50 +94,78 @@ func RunSubmit(ctx context.Context, opts SubmitOptions, stdin io.Reader, stdout,
 		host = h
 	}
 
-	endpoint, err := client.ResolveEndpoint(opts.Endpoint)
+	endpoints, err := client.ResolveEndpoints(opts.Endpoint)
 	if err != nil {
 		fmt.Fprintf(stderr, "endpoint %q: %v\n", opts.Endpoint, err)
 		return ExitUsageError
 	}
 
 	if opts.DryRun {
-		fmt.Fprintf(stdout, "[dry-run] endpoint=%s host=%s urls=%d\n", endpoint, host, len(urls))
+		key := "endpoint"
+		if len(endpoints) > 1 {
+			key = "endpoints"
+		}
+		fmt.Fprintf(stdout, "[dry-run] %s=%s host=%s urls=%d\n", key, strings.Join(endpoints, ","), host, len(urls))
 		for _, u := range urls {
 			fmt.Fprintf(stdout, "  %s\n", u)
 		}
 		return ExitOK
 	}
 
-	cfg := client.Config{
-		Key:         opts.Key,
-		Host:        host,
-		KeyLocation: opts.KeyLocation,
-		Endpoint:    endpoint,
-		MaxRetries:  opts.MaxRetries,
-		BaseBackoff: opts.BaseBackoff,
-		MaxBackoff:  opts.MaxBackoff,
-	}
-	sub, err := factory(cfg)
-	if err != nil {
-		fmt.Fprintf(stderr, "client init: %v\n", err)
-		return ExitFailed
-	}
+	batches := fanOut(ctx, opts, host, urls, endpoints, factory)
 
-	results, err := sub.SubmitBatch(ctx, urls)
-	if err != nil {
-		fmt.Fprintf(stderr, "submit: %v\n", err)
-		return ExitFailed
-	}
-
-	if err := renderResults(stdout, results, opts.Output, endpoint); err != nil {
+	if err := renderResults(stdout, batches, opts.Output); err != nil {
 		fmt.Fprintf(stderr, "render: %v\n", err)
 		return ExitFailed
 	}
 
-	if shouldFail(results, opts.FailOn) {
+	if shouldFail(batches, opts.FailOn) {
 		return ExitFailed
 	}
 	return ExitOK
+}
+
+// endpointBatch is the per-endpoint outcome of a fan-out submission. Err
+// captures factory/transport errors that abort that endpoint entirely; the
+// per-batch errors live inside Results.
+type endpointBatch struct {
+	Endpoint string
+	Results  []*client.Result
+	Err      error
+}
+
+func fanOut(ctx context.Context, opts SubmitOptions, host string, urls, endpoints []string, factory SubmitterFactory) []endpointBatch {
+	out := make([]endpointBatch, len(endpoints))
+	var wg sync.WaitGroup
+	for i, ep := range endpoints {
+		wg.Add(1)
+		go func(i int, ep string) {
+			defer wg.Done()
+			out[i].Endpoint = ep
+			cfg := client.Config{
+				Key:         opts.Key,
+				Host:        host,
+				KeyLocation: opts.KeyLocation,
+				Endpoint:    ep,
+				MaxRetries:  opts.MaxRetries,
+				BaseBackoff: opts.BaseBackoff,
+				MaxBackoff:  opts.MaxBackoff,
+			}
+			sub, err := factory(cfg)
+			if err != nil {
+				out[i].Err = fmt.Errorf("client init: %w", err)
+				return
+			}
+			rs, err := sub.SubmitBatch(ctx, urls)
+			if err != nil {
+				out[i].Err = fmt.Errorf("submit: %w", err)
+				return
+			}
+			out[i].Results = rs
+		}(i, ep)
+	}
+	wg.Wait()
+	return out
 }
 
 func validateOutput(v string) error {
@@ -235,63 +264,90 @@ type jsonResult struct {
 	Error    string   `json:"error,omitempty"`
 }
 
-func renderResults(w io.Writer, results []*client.Result, output, endpoint string) error {
+func renderResults(w io.Writer, batches []endpointBatch, output string) error {
 	if output == "" {
 		output = OutputText
 	}
 	if output == OutputJSON {
-		out := make([]jsonResult, len(results))
-		for i, r := range results {
-			jr := jsonResult{
-				Endpoint: endpoint,
-				Status:   r.StatusCode,
-				Attempts: r.Attempts,
-				URLCount: len(r.URLs),
-				URLs:     r.URLs,
+		var out []jsonResult
+		for _, eb := range batches {
+			if eb.Err != nil {
+				out = append(out, jsonResult{Endpoint: eb.Endpoint, Error: eb.Err.Error()})
+				continue
 			}
-			if r.Err != nil {
-				jr.Error = r.Err.Error()
+			for _, r := range eb.Results {
+				jr := jsonResult{
+					Endpoint: eb.Endpoint,
+					Status:   r.StatusCode,
+					Attempts: r.Attempts,
+					URLCount: len(r.URLs),
+					URLs:     r.URLs,
+				}
+				if r.Err != nil {
+					jr.Error = r.Err.Error()
+				}
+				out = append(out, jr)
 			}
-			out[i] = jr
 		}
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
-	for i, r := range results {
-		status := "OK"
-		if r.Err != nil {
-			status = "FAIL"
+	multi := len(batches) > 1
+	for _, eb := range batches {
+		prefix := ""
+		if multi {
+			prefix = fmt.Sprintf("endpoint=%s ", eb.Endpoint)
 		}
-		fmt.Fprintf(w, "batch %d: %s status=%d attempts=%d urls=%d", i+1, status, r.StatusCode, r.Attempts, len(r.URLs))
-		if r.Err != nil {
-			fmt.Fprintf(w, " err=%v", r.Err)
+		if eb.Err != nil {
+			fmt.Fprintf(w, "%sERROR: %v\n", prefix, eb.Err)
+			continue
 		}
-		fmt.Fprintln(w)
+		for i, r := range eb.Results {
+			status := "OK"
+			if r.Err != nil {
+				status = "FAIL"
+			}
+			fmt.Fprintf(w, "%sbatch %d: %s status=%d attempts=%d urls=%d", prefix, i+1, status, r.StatusCode, r.Attempts, len(r.URLs))
+			if r.Err != nil {
+				fmt.Fprintf(w, " err=%v", r.Err)
+			}
+			fmt.Fprintln(w)
+		}
 	}
 	return nil
 }
 
-func shouldFail(results []*client.Result, failOn string) bool {
+func shouldFail(batches []endpointBatch, failOn string) bool {
 	if failOn == "" {
 		failOn = FailOnAny
+	}
+	// Endpoint-level errors (factory init, transport failure that aborts the
+	// whole batch) are system-level failures, not HTTP outcomes, so they
+	// trigger a non-zero exit even under --fail-on=never.
+	for _, eb := range batches {
+		if eb.Err != nil {
+			return true
+		}
 	}
 	if failOn == FailOnNever {
 		return false
 	}
-	for _, r := range results {
-		switch failOn {
-		case FailOnAny:
-			if r.Err != nil || r.StatusCode < 200 || r.StatusCode >= 300 {
-				return true
-			}
-		case FailOn4xx:
-			if r.StatusCode >= 400 && r.StatusCode < 500 {
-				return true
-			}
-		case FailOn5xx:
-			if r.StatusCode >= 500 && r.StatusCode < 600 {
-				return true
+	for _, eb := range batches {
+		for _, r := range eb.Results {
+			switch failOn {
+			case FailOnAny:
+				if r.Err != nil || r.StatusCode < 200 || r.StatusCode >= 300 {
+					return true
+				}
+			case FailOn4xx:
+				if r.StatusCode >= 400 && r.StatusCode < 500 {
+					return true
+				}
+			case FailOn5xx:
+				if r.StatusCode >= 500 && r.StatusCode < 600 {
+					return true
+				}
 			}
 		}
 	}

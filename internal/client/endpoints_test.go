@@ -58,3 +58,71 @@ func TestResolveEndpoint_Unknown(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveEndpoints_Single(t *testing.T) {
+	got, err := ResolveEndpoints("bing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != EndpointBing {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestResolveEndpoints_MultiPreserveOrder(t *testing.T) {
+	got, err := ResolveEndpoints("yandex, bing , naver")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{EndpointYandex, EndpointBing, EndpointNaver}
+	if !equalStringSlice(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestResolveEndpoints_Dedup(t *testing.T) {
+	got, err := ResolveEndpoints("bing,Bing,bing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != EndpointBing {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestResolveEndpoints_MixedAliasAndURL(t *testing.T) {
+	got, err := ResolveEndpoints("bing,https://custom.example.com/indexnow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{EndpointBing, "https://custom.example.com/indexnow"}
+	if !equalStringSlice(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestResolveEndpoints_UnknownItemFails(t *testing.T) {
+	if _, err := ResolveEndpoints("bing,google"); !errors.Is(err, ErrUnknownEndpoint) {
+		t.Fatalf("got %v, want ErrUnknownEndpoint", err)
+	}
+}
+
+func TestResolveEndpoints_BlankSpec(t *testing.T) {
+	for _, spec := range []string{"", " , , "} {
+		if _, err := ResolveEndpoints(spec); !errors.Is(err, ErrUnknownEndpoint) {
+			t.Fatalf("spec %q: got %v, want ErrUnknownEndpoint", spec, err)
+		}
+	}
+}
+
+func equalStringSlice(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
