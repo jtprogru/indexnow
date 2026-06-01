@@ -13,6 +13,7 @@ indexnow submit [urls...] [flags]
 - позиционные аргументы: `indexnow submit URL [URL ...]`
 - `--file PATH` — по одному URL на строку, `#` — комментарии, пустые строки игнорируются
 - `--stdin` — URL'ы из stdin
+- `--sitemap URL|PATH` — забрать URL'ы из sitemap (sitemapindex раскрывается рекурсивно, `.gz` гунзипится). Опциональный `--sitemap-since <RFC3339>` фильтрует записи по `<lastmod>`; записи без `<lastmod>` всегда проходят — «нет сигнала» трактуется как «могло измениться», что безопасный дефолт для протокола нотификации.
 
 ## Флаги
 
@@ -26,6 +27,9 @@ indexnow submit [urls...] [flags]
 | `--user-agent STRING`               | HTTP-заголовок `User-Agent` (env: `INDEXNOW_USER_AGENT`; default: `indexnow/<version>`) |
 | `--file PATH`                       | Читать URL из файла                                                        |
 | `--stdin`                           | Читать URL из stdin                                                        |
+| `--sitemap URL\|PATH`               | Забрать URL'ы из sitemap (sitemapindex раскрывается; `.gz` гунзипится)      |
+| `--sitemap-since RFC3339`           | Фильтрация записей по `<lastmod>` (без lastmod — всегда проходят)           |
+| `--sitemap-timeout DURATION`        | HTTP-таймаут на один запрос за sitemap (default `30s`)                      |
 | `--dry-run`                         | Показать, что было бы отправлено, и выйти                                  |
 | `--output text\|json`               | Формат вывода                                                              |
 | `-q, --quiet`                       | Глушит stdout; результат — только в exit-коде (ошибки идут в stderr)        |
@@ -43,6 +47,8 @@ indexnow submit --file urls.txt --endpoint bing
 cat urls.txt | indexnow submit --stdin --output json
 indexnow submit --endpoint bing,yandex https://example.com/post/1
 indexnow submit -q https://example.com/post/1 && echo ok || echo failed
+indexnow submit --sitemap https://example.com/sitemap.xml
+indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 ```
 
 ## Коды выхода

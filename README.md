@@ -62,9 +62,18 @@ indexnow submit --file urls.txt --endpoint bing
 sitemap-to-urls | indexnow submit --stdin --output json
 ```
 
+Из sitemap (URL или локальный путь; `<sitemapindex>` раскрывается рекурсивно, `.gz` гунзипится):
+
+```bash
+indexnow submit --sitemap https://example.com/sitemap.xml
+indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
+```
+
 ### Источники URL
 
-Ровно один из: позиционные аргументы, `--file PATH`, `--stdin`.
+Ровно один из: позиционные аргументы, `--file PATH`, `--stdin`, `--sitemap PATH|URL`.
+
+`--sitemap-since <RFC3339>` фильтрует записи по `<lastmod>` — старее переданного времени отбрасываются. Записи без `<lastmod>` всегда проходят: «нет сигнала» трактуется как «могло измениться», что безопасный дефолт для IndexNow.
 
 ### Эндпоинты
 

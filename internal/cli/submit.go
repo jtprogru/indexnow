@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/jtprogru/indexnow/internal/client"
+	"github.com/jtprogru/indexnow/internal/sitemap"
 )
 
 const (
@@ -37,22 +39,25 @@ const (
 )
 
 type SubmitOptions struct {
-	Key         string
-	Host        string
-	KeyLocation string
-	Endpoint    string
-	UserAgent   string
-	File        string
-	Stdin       bool
-	Args        []string
-	DryRun      bool
-	Output      string
-	FailOn      string
-	Quiet       bool
-	Verbose     bool
-	MaxRetries  int
-	BaseBackoff time.Duration
-	MaxBackoff  time.Duration
+	Key            string
+	Host           string
+	KeyLocation    string
+	Endpoint       string
+	UserAgent      string
+	File           string
+	Stdin          bool
+	Sitemap        string
+	SitemapSince   string
+	SitemapTimeout time.Duration
+	Args           []string
+	DryRun         bool
+	Output         string
+	FailOn         string
+	Quiet          bool
+	Verbose        bool
+	MaxRetries     int
+	BaseBackoff    time.Duration
+	MaxBackoff     time.Duration
 }
 
 type Submitter interface {
@@ -94,7 +99,7 @@ func RunSubmit(ctx context.Context, opts SubmitOptions, stdin io.Reader, stdout,
 		return ExitUsageError
 	}
 
-	urls, err := collectURLs(opts, stdin)
+	urls, err := collectURLs(ctx, opts, stdin)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return ExitUsageError
@@ -222,7 +227,7 @@ func validateFailOn(v string) error {
 	}
 }
 
-func collectURLs(opts SubmitOptions, stdin io.Reader) ([]string, error) {
+func collectURLs(ctx context.Context, opts SubmitOptions, stdin io.Reader) ([]string, error) {
 	sources := 0
 	if len(opts.Args) > 0 {
 		sources++
@@ -231,6 +236,9 @@ func collectURLs(opts SubmitOptions, stdin io.Reader) ([]string, error) {
 		sources++
 	}
 	if opts.Stdin {
+		sources++
+	}
+	if opts.Sitemap != "" {
 		sources++
 	}
 	switch sources {
@@ -252,9 +260,35 @@ func collectURLs(opts SubmitOptions, stdin io.Reader) ([]string, error) {
 		}
 		defer f.Close()
 		return parseURLLines(f)
+	case opts.Sitemap != "":
+		return collectFromSitemap(ctx, opts)
 	default:
 		return parseURLLines(stdin)
 	}
+}
+
+func collectFromSitemap(ctx context.Context, opts SubmitOptions) ([]string, error) {
+	var since time.Time
+	if s := strings.TrimSpace(opts.SitemapSince); s != "" {
+		t, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return nil, fmt.Errorf("--sitemap-since: %w", err)
+		}
+		since = t
+	}
+	timeout := opts.SitemapTimeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	httpCl := &http.Client{Timeout: timeout}
+	urls, err := sitemap.Collect(ctx, opts.Sitemap, since, sitemap.DefaultOpen(httpCl, opts.UserAgent))
+	if err != nil {
+		return nil, fmt.Errorf("sitemap: %w", err)
+	}
+	if len(urls) == 0 {
+		return nil, ErrNoURLs
+	}
+	return urls, nil
 }
 
 func parseURLLines(r io.Reader) ([]string, error) {

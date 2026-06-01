@@ -13,6 +13,7 @@ Exactly one URL source is required:
 - positional args: `indexnow submit URL [URL ...]`
 - `--file PATH` — one URL per line, `#` for comments, blank lines skipped
 - `--stdin` — read URLs from stdin
+- `--sitemap URL|PATH` — fetch URLs from a sitemap (sitemapindex is followed recursively, `.gz` is gunzipped). Optional `--sitemap-since <RFC3339>` filters entries by `<lastmod>`; entries without `<lastmod>` always pass — absent signal is treated as "may have changed", which is the safe default for a notification protocol.
 
 ## Flags
 
@@ -26,6 +27,9 @@ Exactly one URL source is required:
 | `--user-agent STRING`               | HTTP `User-Agent` header (env: `INDEXNOW_USER_AGENT`; default: `indexnow/<version>`) |
 | `--file PATH`                       | Read URLs from file                                                     |
 | `--stdin`                           | Read URLs from stdin                                                    |
+| `--sitemap URL\|PATH`               | Fetch URLs from a sitemap (sitemapindex recursed; `.gz` gunzipped)      |
+| `--sitemap-since RFC3339`           | Filter sitemap entries by `<lastmod>` (entries without lastmod always pass) |
+| `--sitemap-timeout DURATION`        | Per-request HTTP timeout for sitemap fetches (default `30s`)            |
 | `--dry-run`                         | Print what would be sent and exit                                       |
 | `--output text\|json`               | Output format                                                            |
 | `-q, --quiet`                       | Suppress stdout; rely on exit code (errors still go to stderr)          |
@@ -43,6 +47,8 @@ indexnow submit --file urls.txt --endpoint bing
 cat urls.txt | indexnow submit --stdin --output json
 indexnow submit --endpoint bing,yandex https://example.com/post/1
 indexnow submit -q https://example.com/post/1 && echo ok || echo failed
+indexnow submit --sitemap https://example.com/sitemap.xml
+indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 ```
 
 ## Exit codes

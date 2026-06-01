@@ -10,7 +10,7 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 
 ### Added
 
--
+- `--sitemap <url|path>` for `submit`: a fourth URL source alongside positional args / `--file` / `--stdin`. Accepts either an absolute http(s) URL or a local filesystem path. `<sitemapindex>` documents are followed recursively (depth-capped, visited sources deduped), `.gz` sources are gunzipped transparently, and self-references terminate cleanly. Companion flags: `--sitemap-since <RFC3339>` filters entries by `<lastmod>` (entries without lastmod always pass — absent signal is treated as "may have changed", which is the safe default for IndexNow), and `--sitemap-timeout` caps per-request HTTP timeout (default `30s`). New package `internal/sitemap` parses the wire format namespace-agnostically via streaming `encoding/xml`, so 50 MB / 50 000-entry sitemaps don't load whole into memory.
 
 ### Changed
 

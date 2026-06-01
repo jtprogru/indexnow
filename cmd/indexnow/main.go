@@ -76,12 +76,14 @@ func newSubmitCmd(ctx context.Context) *cobra.Command {
 		Short: "Submit URLs to an IndexNow endpoint",
 		Long: `submit sends one or more URLs to an IndexNow endpoint.
 
-Sources (exactly one): positional args, --file, or --stdin.
+Sources (exactly one): positional args, --file, --stdin, or --sitemap.
 
 Examples:
   indexnow submit https://example.com/post/1
   indexnow submit --file urls.txt --endpoint bing
-  cat urls.txt | indexnow submit --stdin --output json`,
+  cat urls.txt | indexnow submit --stdin --output json
+  indexnow submit --sitemap https://example.com/sitemap.xml
+  indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.Args = args
 			applyEnvDefaults(&opts)
@@ -105,6 +107,9 @@ Examples:
 	f.StringVar(&opts.Endpoint, "endpoint", "api", "endpoint(s): comma-separated aliases (api|bing|yandex|naver|seznam|yep) or full URLs; multiple endpoints are submitted in parallel (env: INDEXNOW_ENDPOINT)")
 	f.StringVar(&opts.File, "file", "", "read URLs from file (one per line; # comments allowed)")
 	f.BoolVar(&opts.Stdin, "stdin", false, "read URLs from stdin")
+	f.StringVar(&opts.Sitemap, "sitemap", "", "fetch URLs from a sitemap (URL or local path; sitemapindex is followed; .gz is gunzipped)")
+	f.StringVar(&opts.SitemapSince, "sitemap-since", "", "filter sitemap entries by <lastmod> (RFC3339, e.g. 2026-05-01T00:00:00Z); entries without lastmod always pass")
+	f.DurationVar(&opts.SitemapTimeout, "sitemap-timeout", 30*time.Second, "per-request HTTP timeout for sitemap fetches")
 	f.BoolVar(&opts.DryRun, "dry-run", false, "print what would be sent and exit")
 	f.BoolVarP(&opts.Quiet, "quiet", "q", false, "suppress stdout; rely on exit code (errors still go to stderr)")
 	f.BoolVarP(&opts.Verbose, "verbose", "v", false, "log submit lifecycle and retry events to stderr (slog text format)")

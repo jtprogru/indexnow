@@ -76,10 +76,10 @@ func TestParseURLLines_Empty(t *testing.T) {
 
 func TestHostFromURL(t *testing.T) {
 	cases := map[string]string{
-		"https://example.com/page":         "example.com",
-		"http://example.com:8080/p":        "example.com",
-		"https://sub.example.com/x?q=1":    "sub.example.com",
-		"https://www.bing.com/indexnow":    "www.bing.com",
+		"https://example.com/page":      "example.com",
+		"http://example.com:8080/p":     "example.com",
+		"https://sub.example.com/x?q=1": "sub.example.com",
+		"https://www.bing.com/indexnow": "www.bing.com",
 	}
 	for in, want := range cases {
 		got, err := hostFromURL(in)
@@ -99,7 +99,7 @@ func TestHostFromURL(t *testing.T) {
 func TestCollectURLs_Args(t *testing.T) {
 	opts := defaultOpts()
 	opts.Args = []string{"https://example.com/a", "https://example.com/b"}
-	got, err := collectURLs(opts, nil)
+	got, err := collectURLs(context.Background(), opts, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestCollectURLs_File(t *testing.T) {
 	}
 	opts := defaultOpts()
 	opts.File = path
-	got, err := collectURLs(opts, nil)
+	got, err := collectURLs(context.Background(), opts, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestCollectURLs_File(t *testing.T) {
 func TestCollectURLs_Stdin(t *testing.T) {
 	opts := defaultOpts()
 	opts.Stdin = true
-	got, err := collectURLs(opts, strings.NewReader("https://example.com/a\n"))
+	got, err := collectURLs(context.Background(), opts, strings.NewReader("https://example.com/a\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,16 +141,99 @@ func TestCollectURLs_Conflict(t *testing.T) {
 	opts := defaultOpts()
 	opts.Args = []string{"https://example.com/a"}
 	opts.Stdin = true
-	_, err := collectURLs(opts, strings.NewReader("x"))
+	_, err := collectURLs(context.Background(), opts, strings.NewReader("x"))
 	if !errors.Is(err, ErrSourceConflict) {
 		t.Fatalf("got %v, want ErrSourceConflict", err)
 	}
 }
 
 func TestCollectURLs_NoSource(t *testing.T) {
-	_, err := collectURLs(defaultOpts(), nil)
+	_, err := collectURLs(context.Background(), defaultOpts(), nil)
 	if !errors.Is(err, ErrNoSource) {
 		t.Fatalf("got %v, want ErrNoSource", err)
+	}
+}
+
+func TestCollectURLs_Sitemap_LocalFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sitemap.xml")
+	body := `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+		<url><loc>https://example.com/a</loc></url>
+		<url><loc>https://example.com/b</loc></url>
+	</urlset>`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	opts := defaultOpts()
+	opts.Sitemap = path
+	got, err := collectURLs(context.Background(), opts, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestCollectURLs_Sitemap_ConflictsWithFile(t *testing.T) {
+	opts := defaultOpts()
+	opts.Sitemap = "/dev/null"
+	opts.File = "/dev/null"
+	_, err := collectURLs(context.Background(), opts, nil)
+	if !errors.Is(err, ErrSourceConflict) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestCollectURLs_Sitemap_BadSince(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sitemap.xml")
+	if err := os.WriteFile(path, []byte(`<urlset/>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	opts := defaultOpts()
+	opts.Sitemap = path
+	opts.SitemapSince = "yesterday"
+	_, err := collectURLs(context.Background(), opts, nil)
+	if err == nil || !strings.Contains(err.Error(), "sitemap-since") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestCollectURLs_Sitemap_EmptyIsErrNoURLs(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sitemap.xml")
+	if err := os.WriteFile(path, []byte(`<urlset></urlset>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	opts := defaultOpts()
+	opts.Sitemap = path
+	_, err := collectURLs(context.Background(), opts, nil)
+	if !errors.Is(err, ErrNoURLs) {
+		t.Fatalf("got %v, want ErrNoURLs", err)
+	}
+}
+
+func TestRunSubmit_Sitemap_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sitemap.xml")
+	body := `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+		<url><loc>https://example.com/a</loc></url>
+		<url><loc>https://example.com/b</loc></url>
+	</urlset>`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeSubmitter{}
+	opts := defaultOpts()
+	opts.Sitemap = path
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, factoryFor(fake))
+	if code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	if len(fake.calls) != 1 || len(fake.calls[0]) != 2 {
+		t.Fatalf("submitter calls: %v", fake.calls)
 	}
 }
 
