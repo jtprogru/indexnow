@@ -20,6 +20,7 @@ type Config struct {
 	Key         string `yaml:"key"`
 	KeyLocation string `yaml:"key_location"`
 	Endpoint    string `yaml:"endpoint"`
+	UserAgent   string `yaml:"user_agent"`
 }
 
 // Load reads and parses the yaml config at path. An empty file is

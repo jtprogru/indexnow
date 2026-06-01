@@ -22,7 +22,8 @@ indexnow submit [urls...] [flags]
 | `--host`                            | Хост сайта, например `example.com` (env: `INDEXNOW_HOST`; иначе выводится из URL) |
 | `--key-location`                    | Абсолютный URL к hosted key-файлу (env: `INDEXNOW_KEY_LOCATION`)           |
 | `--endpoint`                        | Один алиас/URL либо список через запятую (параллельный fan-out)             |
-| `--config PATH`                     | Yaml-конфиг с дефолтами `host`/`key`/`key_location`/`endpoint`             |
+| `--config PATH`                     | Yaml-конфиг с дефолтами `host`/`key`/`key_location`/`endpoint`/`user_agent` |
+| `--user-agent STRING`               | HTTP-заголовок `User-Agent` (env: `INDEXNOW_USER_AGENT`; default: `indexnow/<version>`) |
 | `--file PATH`                       | Читать URL из файла                                                        |
 | `--stdin`                           | Читать URL из stdin                                                        |
 | `--dry-run`                         | Показать, что было бы отправлено, и выйти                                  |

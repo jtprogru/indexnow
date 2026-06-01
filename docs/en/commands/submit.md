@@ -22,7 +22,8 @@ Exactly one URL source is required:
 | `--host`                            | Site host, e.g. `example.com` (env: `INDEXNOW_HOST`; inferred otherwise) |
 | `--key-location`                    | Absolute URL to the hosted key file (env: `INDEXNOW_KEY_LOCATION`)      |
 | `--endpoint`                        | One alias or full URL, or a comma-separated list (parallel fan-out)     |
-| `--config PATH`                     | Yaml config with `host`/`key`/`key_location`/`endpoint` defaults        |
+| `--config PATH`                     | Yaml config with `host`/`key`/`key_location`/`endpoint`/`user_agent` defaults |
+| `--user-agent STRING`               | HTTP `User-Agent` header (env: `INDEXNOW_USER_AGENT`; default: `indexnow/<version>`) |
 | `--file PATH`                       | Read URLs from file                                                     |
 | `--stdin`                           | Read URLs from stdin                                                    |
 | `--dry-run`                         | Print what would be sent and exit                                       |

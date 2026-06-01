@@ -40,6 +40,7 @@ type SubmitOptions struct {
 	Host        string
 	KeyLocation string
 	Endpoint    string
+	UserAgent   string
 	File        string
 	Stdin       bool
 	Args        []string
@@ -152,6 +153,7 @@ func fanOut(ctx context.Context, opts SubmitOptions, host string, urls, endpoint
 				Host:        host,
 				KeyLocation: opts.KeyLocation,
 				Endpoint:    ep,
+				UserAgent:   opts.UserAgent,
 				MaxRetries:  opts.MaxRetries,
 				BaseBackoff: opts.BaseBackoff,
 				MaxBackoff:  opts.MaxBackoff,

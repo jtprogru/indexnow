@@ -92,6 +92,37 @@ func TestApplyConfig_DefaultMissingFileIsSilent(t *testing.T) {
 	}
 }
 
+func TestApplyConfig_UserAgentFromConfig(t *testing.T) {
+	isolateXDG(t)
+	path := writeConfig(t, "user_agent: cfg-ua/1.0\n")
+	opts := cli.SubmitOptions{Endpoint: "api"}
+	if err := applyConfig(&opts, path); err != nil {
+		t.Fatalf("applyConfig: %v", err)
+	}
+	if opts.UserAgent != "cfg-ua/1.0" {
+		t.Fatalf("got %q", opts.UserAgent)
+	}
+}
+
+func TestApplyDefaults_FillsUserAgent(t *testing.T) {
+	prev := Version
+	Version = "9.9.9"
+	t.Cleanup(func() { Version = prev })
+	opts := cli.SubmitOptions{}
+	applyDefaults(&opts)
+	if opts.UserAgent != "indexnow/9.9.9" {
+		t.Fatalf("got %q, want indexnow/9.9.9", opts.UserAgent)
+	}
+}
+
+func TestApplyDefaults_PreservesUserAgent(t *testing.T) {
+	opts := cli.SubmitOptions{UserAgent: "preset/1.0"}
+	applyDefaults(&opts)
+	if opts.UserAgent != "preset/1.0" {
+		t.Fatalf("applyDefaults must not override preset UA; got %q", opts.UserAgent)
+	}
+}
+
 func TestApplyConfig_DefaultPathIsRespected(t *testing.T) {
 	xdg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", xdg)

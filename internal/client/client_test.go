@@ -126,6 +126,61 @@ func TestSubmit_Success(t *testing.T) {
 	}
 }
 
+func TestSubmit_UserAgent(t *testing.T) {
+	t.Run("custom UA sent on GET", func(t *testing.T) {
+		var gotUA string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotUA = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer srv.Close()
+		cfg := fastConfig(srv.URL)
+		cfg.UserAgent = "indexnow-test/0.0"
+		c, _ := New(cfg)
+		if _, err := c.Submit(context.Background(), "https://example.com/x"); err != nil {
+			t.Fatal(err)
+		}
+		if gotUA != "indexnow-test/0.0" {
+			t.Errorf("UA: got %q, want %q", gotUA, "indexnow-test/0.0")
+		}
+	})
+	t.Run("custom UA sent on POST batch", func(t *testing.T) {
+		var gotUA string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotUA = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer srv.Close()
+		cfg := fastConfig(srv.URL)
+		cfg.UserAgent = "indexnow-test/0.0"
+		c, _ := New(cfg)
+		if _, err := c.SubmitBatch(context.Background(), []string{"https://example.com/x"}); err != nil {
+			t.Fatal(err)
+		}
+		if gotUA != "indexnow-test/0.0" {
+			t.Errorf("UA: got %q, want %q", gotUA, "indexnow-test/0.0")
+		}
+	})
+	t.Run("empty UA leaves Go default", func(t *testing.T) {
+		var gotUA string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotUA = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer srv.Close()
+		c, _ := New(fastConfig(srv.URL))
+		if _, err := c.Submit(context.Background(), "https://example.com/x"); err != nil {
+			t.Fatal(err)
+		}
+		// Go's net/http picks a default like "Go-http-client/1.1" when no
+		// explicit UA is set; the exact string isn't part of our contract,
+		// but it must not be empty (which would mean we accidentally stripped it).
+		if gotUA == "" {
+			t.Errorf("expected stdlib default UA, got empty")
+		}
+	})
+}
+
 func TestSubmit_Accepted202(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusAccepted)

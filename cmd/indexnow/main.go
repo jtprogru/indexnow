@@ -88,6 +88,7 @@ Examples:
 				fmt.Fprintln(cmd.ErrOrStderr(), err)
 				return exitCodeError(cli.ExitUsageError)
 			}
+			applyDefaults(&opts)
 			code := cli.RunSubmit(ctx, opts, os.Stdin, cmd.OutOrStdout(), cmd.ErrOrStderr(), nil)
 			if code != cli.ExitOK {
 				return exitCodeError(code)
@@ -111,6 +112,7 @@ Examples:
 	f.DurationVar(&opts.BaseBackoff, "base-backoff", time.Second, "base retry backoff")
 	f.DurationVar(&opts.MaxBackoff, "max-backoff", 30*time.Second, "max retry backoff")
 	f.StringVar(&configPath, "config", "", "path to yaml config (default: $XDG_CONFIG_HOME/indexnow/config.yaml)")
+	f.StringVar(&opts.UserAgent, "user-agent", "", "HTTP User-Agent header (env: INDEXNOW_USER_AGENT; default: indexnow/<version>)")
 
 	return cmd
 }
@@ -148,6 +150,9 @@ func applyConfig(opts *cli.SubmitOptions, explicitPath string) error {
 	if opts.Endpoint == "api" && cfg.Endpoint != "" {
 		opts.Endpoint = cfg.Endpoint
 	}
+	if opts.UserAgent == "" {
+		opts.UserAgent = cfg.UserAgent
+	}
 	return nil
 }
 
@@ -163,5 +168,17 @@ func applyEnvDefaults(opts *cli.SubmitOptions) {
 	}
 	if v := os.Getenv("INDEXNOW_ENDPOINT"); v != "" && opts.Endpoint == "api" {
 		opts.Endpoint = v
+	}
+	if opts.UserAgent == "" {
+		opts.UserAgent = os.Getenv("INDEXNOW_USER_AGENT")
+	}
+}
+
+// applyDefaults plugs in built-in defaults for fields that no source
+// (flag, env, config) filled. Currently only UserAgent benefits — the
+// stdlib's "Go-http-client/1.1" is unhelpful for proxied setups and WAFs.
+func applyDefaults(opts *cli.SubmitOptions) {
+	if opts.UserAgent == "" {
+		opts.UserAgent = "indexnow/" + Version
 	}
 }

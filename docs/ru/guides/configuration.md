@@ -17,6 +17,7 @@
 | `INDEXNOW_HOST`          | `--host`            |
 | `INDEXNOW_KEY_LOCATION`  | `--key-location`    |
 | `INDEXNOW_ENDPOINT`      | `--endpoint`        |
+| `INDEXNOW_USER_AGENT`    | `--user-agent`      |
 
 `INDEXNOW_ENDPOINT` срабатывает только если `--endpoint` оставлен в дефолте (`api`); явный флаг побеждает ENV.
 
@@ -31,6 +32,7 @@ host: example.com
 key: abc123
 key_location: https://example.com/abc123.txt
 endpoint: bing
+user_agent: my-pipeline/2.3
 ```
 
 Неизвестные ключи отвергаются, чтобы опечатки всплывали сразу. Пустой файл = отсутствие конфига.

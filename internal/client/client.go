@@ -33,6 +33,7 @@ type Config struct {
 	Host        string
 	KeyLocation string
 	Endpoint    string
+	UserAgent   string
 	HTTPClient  *http.Client
 	MaxRetries  int
 	BaseBackoff time.Duration
@@ -104,7 +105,12 @@ func (c *Client) Submit(ctx context.Context, rawURL string) (*Result, error) {
 	target := c.cfg.Endpoint + "?" + q.Encode()
 
 	build := func() (*http.Request, error) {
-		return http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+		if err != nil {
+			return nil, err
+		}
+		c.setUserAgent(req)
+		return req, nil
 	}
 	res := c.executeWithRetry(ctx, build)
 	res.URLs = []string{rawURL}
@@ -151,6 +157,7 @@ func (c *Client) SubmitBatch(ctx context.Context, urls []string) ([]*Result, err
 				return nil, err
 			}
 			req.Header.Set("Content-Type", "application/json; charset=utf-8")
+			c.setUserAgent(req)
 			return req, nil
 		}
 		res := c.executeWithRetry(ctx, build)
@@ -158,6 +165,12 @@ func (c *Client) SubmitBatch(ctx context.Context, urls []string) ([]*Result, err
 		results = append(results, res)
 	}
 	return results, nil
+}
+
+func (c *Client) setUserAgent(req *http.Request) {
+	if c.cfg.UserAgent != "" {
+		req.Header.Set("User-Agent", c.cfg.UserAgent)
+	}
 }
 
 // executeWithRetry runs build()+Do with retry logic. The build function

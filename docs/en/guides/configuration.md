@@ -17,6 +17,7 @@ Configuration is flag-first with ENV and an optional yaml file as fallbacks. Sec
 | `INDEXNOW_HOST`          | `--host`            |
 | `INDEXNOW_KEY_LOCATION`  | `--key-location`    |
 | `INDEXNOW_ENDPOINT`      | `--endpoint`        |
+| `INDEXNOW_USER_AGENT`    | `--user-agent`      |
 
 `INDEXNOW_ENDPOINT` only takes effect when `--endpoint` is left at its default (`api`); explicit flag overrides ENV.
 
@@ -31,6 +32,7 @@ host: example.com
 key: abc123
 key_location: https://example.com/abc123.txt
 endpoint: bing
+user_agent: my-pipeline/2.3
 ```
 
 Unknown keys are rejected so typos surface immediately. Empty file is treated as no config.
