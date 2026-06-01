@@ -66,6 +66,11 @@ linters:
     - usetesting
     - wastedassign
     - zerologlint
+  settings:
+    tagliatelle:
+      case:
+        rules:
+          yaml: snake
   exclusions:
     generated: strict
     warn-unused: false

@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jtprogru/indexnow/internal/cli"
+	"github.com/jtprogru/indexnow/internal/config"
 )
 
 // Build-time variables, injected via -ldflags by goreleaser.
@@ -68,6 +69,7 @@ func (e exitCodeError) Error() string { return "" }
 
 func newSubmitCmd(ctx context.Context) *cobra.Command {
 	opts := cli.SubmitOptions{}
+	var configPath string
 	cmd := &cobra.Command{
 		Use:   "submit [urls...]",
 		Short: "Submit URLs to an IndexNow endpoint",
@@ -82,6 +84,10 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.Args = args
 			applyEnvDefaults(&opts)
+			if err := applyConfig(&opts, configPath); err != nil {
+				fmt.Fprintln(cmd.ErrOrStderr(), err)
+				return exitCodeError(cli.ExitUsageError)
+			}
 			code := cli.RunSubmit(ctx, opts, os.Stdin, cmd.OutOrStdout(), cmd.ErrOrStderr(), nil)
 			if code != cli.ExitOK {
 				return exitCodeError(code)
@@ -103,8 +109,45 @@ Examples:
 	f.IntVar(&opts.MaxRetries, "max-retries", 3, "max retries on 429/5xx/transport errors")
 	f.DurationVar(&opts.BaseBackoff, "base-backoff", time.Second, "base retry backoff")
 	f.DurationVar(&opts.MaxBackoff, "max-backoff", 30*time.Second, "max retry backoff")
+	f.StringVar(&configPath, "config", "", "path to yaml config (default: $XDG_CONFIG_HOME/indexnow/config.yaml)")
 
 	return cmd
+}
+
+// applyConfig fills any SubmitOptions fields still at their zero/default
+// value from the yaml config file. Precedence: flag > env > config > default,
+// so this runs after applyEnvDefaults. An explicit --config that points to
+// a missing file is a usage error; the default XDG path is silently skipped
+// when absent.
+func applyConfig(opts *cli.SubmitOptions, explicitPath string) error {
+	path := explicitPath
+	explicit := path != ""
+	if !explicit {
+		path = config.DefaultPath()
+		if path == "" {
+			return nil
+		}
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) && !explicit {
+			return nil
+		}
+		return fmt.Errorf("config: %w", err)
+	}
+	if opts.Key == "" {
+		opts.Key = cfg.Key
+	}
+	if opts.Host == "" {
+		opts.Host = cfg.Host
+	}
+	if opts.KeyLocation == "" {
+		opts.KeyLocation = cfg.KeyLocation
+	}
+	if opts.Endpoint == "api" && cfg.Endpoint != "" {
+		opts.Endpoint = cfg.Endpoint
+	}
+	return nil
 }
 
 func applyEnvDefaults(opts *cli.SubmitOptions) {
