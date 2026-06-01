@@ -29,6 +29,7 @@ indexnow submit [urls...] [flags]
 | `--dry-run`                         | Показать, что было бы отправлено, и выйти                                  |
 | `--output text\|json`               | Формат вывода                                                              |
 | `-q, --quiet`                       | Глушит stdout; результат — только в exit-коде (ошибки идут в stderr)        |
+| `-v, --verbose`                     | Логирует жизненный цикл submit'а и retry-события в stderr (slog text)        |
 | `--fail-on any\|4xx\|5xx\|never`    | Какие ответы поднимают exit code в 1                                       |
 | `--max-retries N`                   | Ретраи на 429 / 5xx / transport-ошибках (default `3`)                      |
 | `--base-backoff DURATION`           | Базовый backoff (default `1s`)                                             |

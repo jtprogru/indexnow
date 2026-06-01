@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -35,6 +36,7 @@ type Config struct {
 	Endpoint    string
 	UserAgent   string
 	HTTPClient  *http.Client
+	Logger      *slog.Logger // nil → discard
 	MaxRetries  int
 	BaseBackoff time.Duration
 	MaxBackoff  time.Duration
@@ -90,6 +92,9 @@ func New(cfg Config) (*Client, error) {
 	}
 	if cfg.MaxBackoff <= 0 {
 		cfg.MaxBackoff = defaultMaxBackoff
+	}
+	if cfg.Logger == nil {
+		cfg.Logger = slog.New(slog.DiscardHandler)
 	}
 	return &Client{cfg: cfg, http: cfg.HTTPClient}, nil
 }
@@ -160,6 +165,7 @@ func (c *Client) SubmitBatch(ctx context.Context, urls []string) ([]*Result, err
 			c.setUserAgent(req)
 			return req, nil
 		}
+		c.cfg.Logger.Info("submit batch", "endpoint", c.cfg.Endpoint, "host", c.cfg.Host, "urls", len(chunk))
 		res := c.executeWithRetry(ctx, build)
 		res.URLs = chunk
 		results = append(results, res)
@@ -221,6 +227,11 @@ func (c *Client) executeWithRetry(ctx context.Context, build func() (*http.Reque
 		}
 
 		delay := nextBackoff(retriesUsed+1, c.cfg.BaseBackoff, c.cfg.MaxBackoff, retryAfter, rng)
+		reason := fmt.Sprintf("http %d", status)
+		if status == 0 {
+			reason = fmt.Sprintf("transport: %v", res.Err)
+		}
+		c.cfg.Logger.Warn("retry", "endpoint", c.cfg.Endpoint, "attempt", res.Attempts, "reason", reason, "backoff", delay)
 		select {
 		case <-ctx.Done():
 			res.Err = ctx.Err()

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/url"
 	"os"
 	"strings"
@@ -48,6 +49,7 @@ type SubmitOptions struct {
 	Output      string
 	FailOn      string
 	Quiet       bool
+	Verbose     bool
 	MaxRetries  int
 	BaseBackoff time.Duration
 	MaxBackoff  time.Duration
@@ -63,10 +65,22 @@ func defaultFactory(cfg client.Config) (Submitter, error) {
 	return client.New(cfg)
 }
 
+// newLogger returns a slog.Logger that writes lifecycle and retry events
+// to stderr when --verbose is on, or a no-op handler otherwise. Output
+// goes to stderr so it never collides with the stdout result stream
+// (text batches or JSON) that scripts may capture.
+func newLogger(verbose bool, stderr io.Writer) *slog.Logger {
+	if !verbose {
+		return slog.New(slog.DiscardHandler)
+	}
+	return slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+}
+
 func RunSubmit(ctx context.Context, opts SubmitOptions, stdin io.Reader, stdout, stderr io.Writer, factory SubmitterFactory) int {
 	if factory == nil {
 		factory = defaultFactory
 	}
+	logger := newLogger(opts.Verbose, stderr)
 	if err := validateOutput(opts.Output); err != nil {
 		fmt.Fprintln(stderr, err)
 		return ExitUsageError
@@ -116,7 +130,21 @@ func RunSubmit(ctx context.Context, opts SubmitOptions, stdin io.Reader, stdout,
 		return ExitOK
 	}
 
-	batches := fanOut(ctx, opts, host, urls, endpoints, factory)
+	logger.Info("submit", "host", host, "urls", len(urls), "endpoints", len(endpoints))
+	batches := fanOut(ctx, opts, host, urls, endpoints, factory, logger)
+	for _, eb := range batches {
+		if eb.Err != nil {
+			logger.Warn("endpoint failed", "endpoint", eb.Endpoint, "err", eb.Err)
+			continue
+		}
+		for i, r := range eb.Results {
+			level := slog.LevelInfo
+			if r.Err != nil {
+				level = slog.LevelWarn
+			}
+			logger.Log(ctx, level, "batch complete", "endpoint", eb.Endpoint, "batch", i+1, "status", r.StatusCode, "attempts", r.Attempts, "urls", len(r.URLs))
+		}
+	}
 
 	if !opts.Quiet {
 		if err := renderResults(stdout, batches, opts.Output); err != nil {
@@ -140,7 +168,7 @@ type endpointBatch struct {
 	Err      error
 }
 
-func fanOut(ctx context.Context, opts SubmitOptions, host string, urls, endpoints []string, factory SubmitterFactory) []endpointBatch {
+func fanOut(ctx context.Context, opts SubmitOptions, host string, urls, endpoints []string, factory SubmitterFactory, logger *slog.Logger) []endpointBatch {
 	out := make([]endpointBatch, len(endpoints))
 	var wg sync.WaitGroup
 	for i, ep := range endpoints {
@@ -154,6 +182,7 @@ func fanOut(ctx context.Context, opts SubmitOptions, host string, urls, endpoint
 				KeyLocation: opts.KeyLocation,
 				Endpoint:    ep,
 				UserAgent:   opts.UserAgent,
+				Logger:      logger,
 				MaxRetries:  opts.MaxRetries,
 				BaseBackoff: opts.BaseBackoff,
 				MaxBackoff:  opts.MaxBackoff,

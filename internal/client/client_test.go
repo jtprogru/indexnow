@@ -1,10 +1,12 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -243,6 +245,47 @@ func TestSubmit_RetryThenSuccess(t *testing.T) {
 	}
 	if res.Attempts != 3 {
 		t.Errorf("attempts: got %d, want 3", res.Attempts)
+	}
+}
+
+func TestSubmit_Logger_RetryEmitsWarn(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		n := calls.Add(1)
+		if n < 2 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	var buf bytes.Buffer
+	cfg := fastConfig(srv.URL)
+	cfg.Logger = slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	c, _ := New(cfg)
+	if _, err := c.Submit(context.Background(), "https://example.com/x"); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, "level=WARN") || !strings.Contains(got, "msg=retry") {
+		t.Fatalf("expected retry WARN log, got %q", got)
+	}
+	if !strings.Contains(got, "http 503") {
+		t.Fatalf("retry log should record status reason; got %q", got)
+	}
+}
+
+func TestSubmit_Logger_NilDefaultsToDiscard(t *testing.T) {
+	// Ensures the existing default-nil-Logger behavior keeps working — no
+	// panic on log calls and nothing leaks to anywhere visible.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	c, _ := New(fastConfig(srv.URL)) // no Logger set
+	if _, err := c.Submit(context.Background(), "https://example.com/x"); err != nil {
+		t.Fatal(err)
 	}
 }
 

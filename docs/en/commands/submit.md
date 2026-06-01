@@ -29,6 +29,7 @@ Exactly one URL source is required:
 | `--dry-run`                         | Print what would be sent and exit                                       |
 | `--output text\|json`               | Output format                                                            |
 | `-q, --quiet`                       | Suppress stdout; rely on exit code (errors still go to stderr)          |
+| `-v, --verbose`                     | Log submit lifecycle and retry events to stderr (slog text format)      |
 | `--fail-on any\|4xx\|5xx\|never`    | Which responses trigger exit 1                                          |
 | `--max-retries N`                   | Retries on 429 / 5xx / transport errors (default `3`)                   |
 | `--base-backoff DURATION`           | Base retry backoff (default `1s`)                                       |

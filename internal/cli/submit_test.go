@@ -561,6 +561,43 @@ func TestRunSubmit_Quiet_DryRunSilent(t *testing.T) {
 	}
 }
 
+func TestRunSubmit_Verbose_EmitsLogsToStderr(t *testing.T) {
+	fake := &fakeSubmitter{
+		results: []*client.Result{{StatusCode: 200, Attempts: 1, URLs: []string{"https://example.com/a"}}},
+	}
+	opts := defaultOpts()
+	opts.Args = []string{"https://example.com/a"}
+	opts.Verbose = true
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, factoryFor(fake))
+	if code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	out := stderr.String()
+	if !strings.Contains(out, `msg=submit`) {
+		t.Fatalf("expected lifecycle log on stderr; got %q", out)
+	}
+	if !strings.Contains(out, `msg="batch complete"`) {
+		t.Fatalf("expected per-batch log on stderr; got %q", out)
+	}
+}
+
+func TestRunSubmit_NotVerbose_NoLogs(t *testing.T) {
+	fake := &fakeSubmitter{
+		results: []*client.Result{{StatusCode: 200, Attempts: 1, URLs: []string{"https://example.com/a"}}},
+	}
+	opts := defaultOpts()
+	opts.Args = []string{"https://example.com/a"}
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, factoryFor(fake))
+	if code != ExitOK {
+		t.Fatal(code)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("default mode must not emit logs; got %q", stderr.String())
+	}
+}
+
 func TestRunSubmit_Quiet_ValidationErrorStillReachesStderr(t *testing.T) {
 	opts := defaultOpts()
 	opts.Args = []string{"https://example.com/a"}
