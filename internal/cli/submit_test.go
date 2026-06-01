@@ -508,6 +508,77 @@ func TestRunSubmit_MultiEndpoint_DryRunListsAll(t *testing.T) {
 	}
 }
 
+func TestRunSubmit_Quiet_SuppressesStdoutOnSuccess(t *testing.T) {
+	fake := &fakeSubmitter{
+		results: []*client.Result{{StatusCode: 200, Attempts: 1, URLs: []string{"https://example.com/a"}}},
+	}
+	opts := defaultOpts()
+	opts.Args = []string{"https://example.com/a"}
+	opts.Quiet = true
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, factoryFor(fake))
+	if code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("--quiet should produce no stdout on success; got %q", stdout.String())
+	}
+	if len(fake.calls) != 1 {
+		t.Fatalf("submitter must still be called under --quiet; got %d calls", len(fake.calls))
+	}
+}
+
+func TestRunSubmit_Quiet_SuppressesStdoutOnFailure(t *testing.T) {
+	fake := &fakeSubmitter{
+		results: []*client.Result{{StatusCode: 500, Attempts: 3, URLs: []string{"https://example.com/a"}, Err: errors.New("boom")}},
+	}
+	opts := defaultOpts()
+	opts.Args = []string{"https://example.com/a"}
+	opts.Quiet = true
+	opts.FailOn = FailOnAny
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, factoryFor(fake))
+	if code != ExitFailed {
+		t.Fatalf("expected ExitFailed; got %d", code)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("--quiet should produce no stdout on failure either; got %q", stdout.String())
+	}
+}
+
+func TestRunSubmit_Quiet_DryRunSilent(t *testing.T) {
+	opts := defaultOpts()
+	opts.Args = []string{"https://example.com/a"}
+	opts.Quiet = true
+	opts.DryRun = true
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, factoryFor(&fakeSubmitter{}))
+	if code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("--quiet --dry-run should produce no stdout; got %q", stdout.String())
+	}
+}
+
+func TestRunSubmit_Quiet_ValidationErrorStillReachesStderr(t *testing.T) {
+	opts := defaultOpts()
+	opts.Args = []string{"https://example.com/a"}
+	opts.Quiet = true
+	opts.Key = "" // trigger usage error
+	var stdout, stderr bytes.Buffer
+	code := RunSubmit(context.Background(), opts, nil, &stdout, &stderr, factoryFor(&fakeSubmitter{}))
+	if code != ExitUsageError {
+		t.Fatalf("expected ExitUsageError; got %d", code)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("--quiet should not touch stdout for validation; got %q", stdout.String())
+	}
+	if stderr.Len() == 0 {
+		t.Fatalf("--quiet must not silence stderr errors")
+	}
+}
+
 func equalStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

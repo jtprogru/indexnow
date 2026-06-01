@@ -21,11 +21,13 @@ indexnow submit [urls...] [flags]
 | `--key`                             | IndexNow-ключ (env: `INDEXNOW_KEY`)                                        |
 | `--host`                            | Хост сайта, например `example.com` (env: `INDEXNOW_HOST`; иначе выводится из URL) |
 | `--key-location`                    | Абсолютный URL к hosted key-файлу (env: `INDEXNOW_KEY_LOCATION`)           |
-| `--endpoint`                        | `api`, `bing`, `yandex`, `naver`, `seznam`, `yep` или полный URL           |
+| `--endpoint`                        | Один алиас/URL либо список через запятую (параллельный fan-out)             |
+| `--config PATH`                     | Yaml-конфиг с дефолтами `host`/`key`/`key_location`/`endpoint`             |
 | `--file PATH`                       | Читать URL из файла                                                        |
 | `--stdin`                           | Читать URL из stdin                                                        |
 | `--dry-run`                         | Показать, что было бы отправлено, и выйти                                  |
 | `--output text\|json`               | Формат вывода                                                              |
+| `-q, --quiet`                       | Глушит stdout; результат — только в exit-коде (ошибки идут в stderr)        |
 | `--fail-on any\|4xx\|5xx\|never`    | Какие ответы поднимают exit code в 1                                       |
 | `--max-retries N`                   | Ретраи на 429 / 5xx / transport-ошибках (default `3`)                      |
 | `--base-backoff DURATION`           | Базовый backoff (default `1s`)                                             |
@@ -37,6 +39,8 @@ indexnow submit [urls...] [flags]
 indexnow submit https://example.com/post/1
 indexnow submit --file urls.txt --endpoint bing
 cat urls.txt | indexnow submit --stdin --output json
+indexnow submit --endpoint bing,yandex https://example.com/post/1
+indexnow submit -q https://example.com/post/1 && echo ok || echo failed
 ```
 
 ## Коды выхода

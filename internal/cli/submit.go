@@ -46,6 +46,7 @@ type SubmitOptions struct {
 	DryRun      bool
 	Output      string
 	FailOn      string
+	Quiet       bool
 	MaxRetries  int
 	BaseBackoff time.Duration
 	MaxBackoff  time.Duration
@@ -101,22 +102,26 @@ func RunSubmit(ctx context.Context, opts SubmitOptions, stdin io.Reader, stdout,
 	}
 
 	if opts.DryRun {
-		key := "endpoint"
-		if len(endpoints) > 1 {
-			key = "endpoints"
-		}
-		fmt.Fprintf(stdout, "[dry-run] %s=%s host=%s urls=%d\n", key, strings.Join(endpoints, ","), host, len(urls))
-		for _, u := range urls {
-			fmt.Fprintf(stdout, "  %s\n", u)
+		if !opts.Quiet {
+			key := "endpoint"
+			if len(endpoints) > 1 {
+				key = "endpoints"
+			}
+			fmt.Fprintf(stdout, "[dry-run] %s=%s host=%s urls=%d\n", key, strings.Join(endpoints, ","), host, len(urls))
+			for _, u := range urls {
+				fmt.Fprintf(stdout, "  %s\n", u)
+			}
 		}
 		return ExitOK
 	}
 
 	batches := fanOut(ctx, opts, host, urls, endpoints, factory)
 
-	if err := renderResults(stdout, batches, opts.Output); err != nil {
-		fmt.Fprintf(stderr, "render: %v\n", err)
-		return ExitFailed
+	if !opts.Quiet {
+		if err := renderResults(stdout, batches, opts.Output); err != nil {
+			fmt.Fprintf(stderr, "render: %v\n", err)
+			return ExitFailed
+		}
 	}
 
 	if shouldFail(batches, opts.FailOn) {

@@ -104,6 +104,7 @@ Examples:
 	f.StringVar(&opts.File, "file", "", "read URLs from file (one per line; # comments allowed)")
 	f.BoolVar(&opts.Stdin, "stdin", false, "read URLs from stdin")
 	f.BoolVar(&opts.DryRun, "dry-run", false, "print what would be sent and exit")
+	f.BoolVarP(&opts.Quiet, "quiet", "q", false, "suppress stdout; rely on exit code (errors still go to stderr)")
 	f.StringVar(&opts.Output, "output", cli.OutputText, "output format: text|json")
 	f.StringVar(&opts.FailOn, "fail-on", cli.FailOnAny, "exit non-zero on: any|4xx|5xx|never")
 	f.IntVar(&opts.MaxRetries, "max-retries", 3, "max retries on 429/5xx/transport errors")
