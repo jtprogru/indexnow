@@ -58,6 +58,7 @@ plugins:
             Overview: Обзор
             Commands: Команды
             Guides: Руководства
+            Key lifecycle: Жизненный цикл ключа
             Endpoints: Эндпоинты
             Configuration: Конфигурация
             Architecture: Архитектура
@@ -96,8 +97,10 @@ nav:
   - CLI:
       - Overview: commands/index.md
       - indexnow submit: commands/submit.md
-      - indexnow verify: commands/verify.md
+      - indexnow key gen: commands/key-gen.md
+      - indexnow key verify: commands/verify.md
   - Guides:
+      - Key lifecycle: guides/key-lifecycle.md
       - Endpoints: guides/endpoints.md
       - Configuration: guides/configuration.md
   - Architecture: architecture.md

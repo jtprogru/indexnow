@@ -10,11 +10,12 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 
 ### Added
 
--
+- New `indexnow key` command namespace that groups key-management operations. `indexnow key gen` generates a random hex-encoded IndexNow key (default 32 chars, 128 bits of entropy from `crypto/rand`; `--length 8..128` accepted) and optionally writes the hosted key file `<dir>/<key>.txt` with `--write <dir>` (mode `0644`, refuses to overwrite without `--force`). Output is the bare key on stdout for `KEY=$(indexnow key gen)`-style use; `--output json` emits `{"key":"…","path":"…"}`; `-q` suppresses stdout while still writing the file. `indexnow key verify` is the canonical form of the existing verify operation — same flags, same behavior. No new Action input: key management is intentionally CLI-only; the Action uses keys but does not generate or rotate them.
+- New documentation page `guides/key-lifecycle.md` (EN+RU) walks through the whole flow — generate, deploy, hosting-mode choice, where the key lives at use-time, verify the bootstrap, use, manual rotate. Getting Started now defers to this guide instead of duplicating partial fragments.
 
 ### Changed
 
--
+- `indexnow verify` (top-level) is kept as a backwards-compatibility alias for `indexnow key verify`. Existing scripts written against v0.3.0–v0.6.x continue to work unchanged. New code should prefer the canonical `key verify` form; the alias is documented in the command reference.
 
 ### Fixed
 

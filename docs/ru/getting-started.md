@@ -4,17 +4,14 @@
 
 ## Получите IndexNow-ключ
 
-Оба пути требуют ключ (8..128 символов, `[A-Za-z0-9-]`), размещённый по известному URL на сайте — обычно `https://example.com/<key>.txt`, где в файле — этот ключ одной строкой. Подробнее — в [документации IndexNow](https://www.indexnow.org/documentation).
-
-Быстро сгенерировать:
+Оба пути требуют ключ, размещённый по известному URL на сайте. Полный walkthrough — сгенерировать, выкатить, прописать, проверить, использовать, ротировать — в **[Жизненный цикл ключа](guides/key-lifecycle.md)**. Версия за 30 секунд:
 
 ```bash
-key=$(openssl rand -hex 16)
-echo "$key" > "public/${key}.txt"
-echo "INDEXNOW_KEY=${key}"
+brew install jtprogru/tap/indexnow   # или `go install`, см. ниже
+indexnow key gen --write public/     # генерит ключ + создаёт public/<key>.txt
 ```
 
-(Имя файла и его содержимое должны совпадать.) Выкатите файл со статикой, а сам ключ положите в CI-секреты — обычно `INDEXNOW_KEY`.
+Закоммитьте `<key>.txt`, задеплойте, положите значение ключа в `INDEXNOW_KEY` секрет CI (или env / config-файл для локального использования) — и можно submit'ить.
 
 ## Путь A — GitHub Action (рекомендуется)
 

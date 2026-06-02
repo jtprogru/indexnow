@@ -1,10 +1,14 @@
-# `indexnow verify`
+# `indexnow key verify`
 
 Проверяет, что hosted key-файл сайта совпадает с ожидаемым ключом. Полезно перед первой отправкой и как smoke-проверка в deploy-пайплайне после ротации ключа.
+
+> Топ-левел форма `indexnow verify` сохранена как backwards-compat alias для скриптов, написанных под v0.3.0–v0.6.x. Поведение идентично `indexnow key verify`. В новом коде используйте canonical-форму.
 
 ## Использование
 
 ```bash
+indexnow key verify [flags]
+# или эквивалентно:
 indexnow verify [flags]
 ```
 

@@ -1,10 +1,14 @@
-# `indexnow verify`
+# `indexnow key verify`
 
 Verify that the hosted IndexNow key file matches the expected key. Useful before the first submission, or as a smoke test in a deploy pipeline after rotating the key file.
+
+> The top-level `indexnow verify` form is kept as a backwards-compatibility alias for scripts written against v0.3.0–v0.6.x. Behavior is identical to `indexnow key verify`. New code should prefer the canonical form.
 
 ## Synopsis
 
 ```bash
+indexnow key verify [flags]
+# or equivalently:
 indexnow verify [flags]
 ```
 

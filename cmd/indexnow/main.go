@@ -50,6 +50,7 @@ search engine — you only need to call one.`,
 	root.SetVersionTemplate("indexnow {{.Version}}\n")
 
 	root.AddCommand(newSubmitCmd(ctx))
+	root.AddCommand(newKeyCmd(ctx))
 	root.AddCommand(newVerifyCmd(ctx))
 	root.SetArgs(args)
 
@@ -201,35 +202,29 @@ func applyDefaults(opts *cli.SubmitOptions) {
 	}
 }
 
-func newVerifyCmd(ctx context.Context) *cobra.Command {
+// buildVerifyCmd wires the verify operation onto an empty cobra.Command, so it
+// can be registered both as the top-level `indexnow verify` (backwards-compat
+// alias) and as `indexnow key verify` (canonical). Behavior is identical; only
+// the help text differs at the call sites.
+func buildVerifyCmd(ctx context.Context, cmd *cobra.Command) *cobra.Command {
 	opts := cli.VerifyOptions{}
 	var configPath string
-	cmd := &cobra.Command{
-		Use:   "verify",
-		Short: "Verify that the hosted IndexNow key file matches the expected key",
-		Long: `verify performs the same check participating endpoints do:
-fetch the hosted key file via HTTP GET and confirm its trimmed body equals
-the expected key.
 
-If --key-location is set, that URL is fetched. Otherwise the conventional
-location https://<host>/<key>.txt is used (requires --host and a valid --key).
-
-Exit 0 if the hosted key matches; non-zero otherwise.`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			applyVerifyEnv(&opts)
-			if err := applyVerifyConfig(&opts, configPath); err != nil {
-				fmt.Fprintln(cmd.ErrOrStderr(), err)
-				return exitCodeError(cli.ExitUsageError)
-			}
-			applyVerifyDefaults(&opts)
-			code := cli.RunVerify(ctx, opts, cmd.OutOrStdout(), cmd.ErrOrStderr(), nil)
-			if code != cli.ExitOK {
-				return exitCodeError(code)
-			}
-			return nil
-		},
+	cmd.Args = cobra.NoArgs
+	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		applyVerifyEnv(&opts)
+		if err := applyVerifyConfig(&opts, configPath); err != nil {
+			fmt.Fprintln(cmd.ErrOrStderr(), err)
+			return exitCodeError(cli.ExitUsageError)
+		}
+		applyVerifyDefaults(&opts)
+		code := cli.RunVerify(ctx, opts, cmd.OutOrStdout(), cmd.ErrOrStderr(), nil)
+		if code != cli.ExitOK {
+			return exitCodeError(code)
+		}
+		return nil
 	}
+
 	f := cmd.Flags()
 	f.StringVar(&opts.Key, "key", "", "IndexNow key (env: INDEXNOW_KEY)")
 	f.StringVar(&opts.Host, "host", "", "site host, e.g. example.com (env: INDEXNOW_HOST)")
@@ -241,6 +236,81 @@ Exit 0 if the hosted key matches; non-zero otherwise.`,
 	f.DurationVar(&opts.Timeout, "timeout", 10*time.Second, "HTTP timeout for the key fetch")
 	f.StringVar(&configPath, "config", "", "path to yaml config (default: $XDG_CONFIG_HOME/indexnow/config.yaml)")
 	return cmd
+}
+
+// newVerifyCmd is the top-level `indexnow verify` — kept as a backwards-compat
+// alias for `indexnow key verify`.
+func newVerifyCmd(ctx context.Context) *cobra.Command {
+	return buildVerifyCmd(ctx, &cobra.Command{
+		Use:   "verify",
+		Short: "Alias for `indexnow key verify` (kept for backwards compatibility)",
+		Long: `verify is the legacy top-level form of "indexnow key verify".
+
+It is kept for backwards compatibility with scripts written against
+indexnow v0.3.0..v0.6.x. Behavior is identical to "indexnow key verify".`,
+	})
+}
+
+// newKeyCmd is the parent of "indexnow key {gen,verify}".
+func newKeyCmd(ctx context.Context) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "key",
+		Short: "Manage IndexNow keys (generate, verify)",
+		Long: `key groups operations that produce or check IndexNow keys.
+
+Use "indexnow key gen" to produce a new key (optionally writing the
+hosted key file), and "indexnow key verify" to check that the hosted
+file matches an expected key.`,
+	}
+	cmd.AddCommand(newKeyGenCmd())
+	cmd.AddCommand(newKeyVerifyCmd(ctx))
+	return cmd
+}
+
+func newKeyGenCmd() *cobra.Command {
+	opts := cli.KeygenOptions{}
+	cmd := &cobra.Command{
+		Use:   "gen",
+		Short: "Generate a new IndexNow key (optionally writing the hosted file)",
+		Long: `gen produces a random hex-encoded IndexNow key.
+
+With --write <dir>, the hosted key file <dir>/<key>.txt is created with
+mode 0644 and content "<key>\n". The default key length is 32 hex chars
+(128 bits of entropy); --length accepts values in 8..128.
+
+The key is printed to stdout (one line) unless --quiet. Status notices
+("wrote …") go to stderr.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			code := cli.RunKeygen(opts, cmd.OutOrStdout(), cmd.ErrOrStderr())
+			if code != cli.ExitOK {
+				return exitCodeError(code)
+			}
+			return nil
+		},
+	}
+	f := cmd.Flags()
+	f.IntVar(&opts.Length, "length", 0, "key length in hex chars (8..128, default 32)")
+	f.StringVar(&opts.Write, "write", "", "directory to write hosted key file <key>.txt into")
+	f.BoolVar(&opts.Force, "force", false, "overwrite existing key file")
+	f.StringVar(&opts.Output, "output", cli.OutputText, "output format: text|json")
+	f.BoolVarP(&opts.Quiet, "quiet", "q", false, "suppress stdout; rely on exit code")
+	return cmd
+}
+
+func newKeyVerifyCmd(ctx context.Context) *cobra.Command {
+	return buildVerifyCmd(ctx, &cobra.Command{
+		Use:   "verify",
+		Short: "Verify that the hosted IndexNow key file matches the expected key",
+		Long: `verify performs the same check participating endpoints do:
+fetch the hosted key file via HTTP GET and confirm its trimmed body equals
+the expected key.
+
+If --key-location is set, that URL is fetched. Otherwise the conventional
+location https://<host>/<key>.txt is used (requires --host and a valid --key).
+
+Exit 0 if the hosted key matches; non-zero otherwise.`,
+	})
 }
 
 func applyVerifyEnv(opts *cli.VerifyOptions) {

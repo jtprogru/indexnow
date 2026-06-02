@@ -4,16 +4,14 @@ Two ways to run indexnow. Pick whichever fits your pipeline — they share the s
 
 ## Get an IndexNow key
 
-Both paths need a key (8..128 chars, `[A-Za-z0-9-]`) hosted at a known URL on your site — typically `https://example.com/<key>.txt` containing the key as the only line. See the [IndexNow docs](https://www.indexnow.org/documentation) for details.
-
-A quick way to generate one:
+Both paths need a key hosted at a known URL on your site. The full walkthrough — generate, deploy, wire up, verify, use, rotate — lives in **[Key lifecycle](guides/key-lifecycle.md)**. The 30-second version:
 
 ```bash
-openssl rand -hex 32 > public/8f7e6d5c4b3a29180706050403020100.txt
-echo "8f7e6d5c4b3a29180706050403020100" > public/8f7e6d5c4b3a29180706050403020100.txt
+brew install jtprogru/tap/indexnow   # or `go install`, see below
+indexnow key gen --write public/     # generates key, writes public/<key>.txt
 ```
 
-(File name and contents must match.) Deploy the file with your site, then store the key value as a CI secret — usually `INDEXNOW_KEY`.
+Commit `<key>.txt`, deploy, store the key value as `INDEXNOW_KEY` in your CI secrets (or env / config file for local use), and you're ready to submit.
 
 ## Path A — GitHub Action (recommended)
 

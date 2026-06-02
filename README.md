@@ -52,6 +52,15 @@ go install github.com/jtprogru/indexnow/cmd/indexnow@latest
 
 Готовые бинарники под Linux / macOS / FreeBSD (amd64, arm64) — на странице [Releases](https://github.com/jtprogru/indexnow/releases).
 
+### Manage keys
+
+```bash
+indexnow key gen --write public/      # сгенерить ключ + положить hosted-файл
+indexnow key verify --host example.com --key $KEY   # проверить, что hosted-файл live
+```
+
+Полный жизненный цикл (bootstrap → deploy → verify → use → rotate) — [docs → Key lifecycle](https://jtprogru.github.io/indexnow/guides/key-lifecycle/).
+
 ### Usage
 
 ```bash
