@@ -23,6 +23,14 @@ inputs:
     description: URL or filesystem path to a sitemap.xml (.gz / <sitemapindex> are followed).
     required: false
     default: ""
+  urls-from:
+    description: >
+      Bash snippet whose stdout becomes the URL list (one URL per line; '#'-prefixed
+      lines are comments; blank lines ignored). Runs in $GITHUB_WORKSPACE so `git diff`
+      works against the checked-out repo. Empty output is success — the step exits 0
+      with submitted-count=0 and submit is not invoked.
+    required: false
+    default: ""
 
   # Sitemap modifiers.
   sitemap-since:
@@ -81,6 +89,12 @@ inputs:
     default: ""
   max-backoff:
     description: Max retry backoff (Go duration, e.g. 5s).
+    required: false
+    default: ""
+
+  # Config file.
+  config:
+    description: Path to an indexnow yaml config (relative to $GITHUB_WORKSPACE).
     required: false
     default: ""
 
@@ -150,6 +164,7 @@ runs:
         INPUT_URLS: ${{ inputs.urls }}
         INPUT_FILE: ${{ inputs.file }}
         INPUT_SITEMAP: ${{ inputs.sitemap }}
+        INPUT_URLS_FROM: ${{ inputs.urls-from }}
       run: ${{ github.action_path }}/scripts/preflight.sh
 
     - name: Run indexnow submit
@@ -167,6 +182,7 @@ runs:
         INPUT_URLS: ${{ inputs.urls }}
         INPUT_FILE: ${{ inputs.file }}
         INPUT_SITEMAP: ${{ inputs.sitemap }}
+        INPUT_URLS_FROM: ${{ inputs.urls-from }}
         INPUT_SITEMAP_SINCE: ${{ inputs.sitemap-since }}
         INPUT_SITEMAP_TIMEOUT: ${{ inputs.sitemap-timeout }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
@@ -176,4 +192,5 @@ runs:
         INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
         INPUT_BASE_BACKOFF: ${{ inputs.base-backoff }}
         INPUT_MAX_BACKOFF: ${{ inputs.max-backoff }}
+        INPUT_CONFIG: ${{ inputs.config }}
       run: ${{ github.action_path }}/scripts/run.sh

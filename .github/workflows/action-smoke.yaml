@@ -48,6 +48,58 @@ jobs:
           sitemap: ${{ github.workspace }}/.github/fixtures/sitemap.xml
           dry-run: "true"
 
-      - name: Assert cache hit on second use
+      - name: Use indexnow Action (dry-run, urls-from with output)
+        uses: ./
+        with:
+          version: "latest"
+          key: "abcdef0123456789abcdef0123456789"
+          host: "example.com"
+          urls-from: |
+            printf '%s\n' \
+              https://example.com/a \
+              '# comment lines are ignored' \
+              https://example.com/b
+          dry-run: "true"
+
+      - name: Use indexnow Action (urls-from empty — exit 0, submit skipped)
+        id: empty
+        uses: ./
+        with:
+          version: "latest"
+          key: "abcdef0123456789abcdef0123456789"
+          host: "example.com"
+          urls-from: "true"
+          dry-run: "true"
+
+      - name: Assert empty urls-from produced submitted-count=0
         run: |
-          echo "If we got here, both uses of the action succeeded with the same version-arch cache key."
+          if [[ "${{ steps.empty.outputs.submitted-count }}" != "0" ]]; then
+            echo "expected submitted-count=0, got '${{ steps.empty.outputs.submitted-count }}'"
+            exit 1
+          fi
+          if [[ "${{ steps.empty.outputs.exit-code }}" != "0" ]]; then
+            echo "expected exit-code=0, got '${{ steps.empty.outputs.exit-code }}'"
+            exit 1
+          fi
+
+      - name: Use indexnow Action (urls-from script fails — step fails)
+        id: failing
+        continue-on-error: true
+        uses: ./
+        with:
+          version: "latest"
+          key: "abcdef0123456789abcdef0123456789"
+          host: "example.com"
+          urls-from: "echo 'simulated failure' >&2; exit 7"
+          dry-run: "true"
+
+      - name: Assert failing urls-from caused step failure
+        run: |
+          if [[ "${{ steps.failing.outcome }}" != "failure" ]]; then
+            echo "expected previous step to fail; outcome was '${{ steps.failing.outcome }}'"
+            exit 1
+          fi
+
+      - name: Assert cache hit on subsequent uses
+        run: |
+          echo "If we got here, all uses of the action shared the same version-arch cache key."

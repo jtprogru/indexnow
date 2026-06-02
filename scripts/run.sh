@@ -16,8 +16,37 @@ elif [[ -n "${INPUT_FILE:-}" ]]; then
   args+=(--file "$INPUT_FILE")
 elif [[ -n "${INPUT_SITEMAP:-}" ]]; then
   args+=(--sitemap "$INPUT_SITEMAP")
+elif [[ -n "${INPUT_URLS_FROM:-}" ]]; then
+  url_tmp=$(mktemp)
+  # User-supplied bash snippet. Its stderr passes through to the step log;
+  # we only capture stdout. set -e propagates a non-zero exit from the snippet.
+  bash -c "$INPUT_URLS_FROM" > "$url_tmp"
+
+  # Empty output is a legitimate "nothing to do" case; skip submit entirely.
+  # grep -c returns 1 on zero matches under set -e, so OR with true.
+  effective=$(grep -cvE '^[[:space:]]*(#|$)' "$url_tmp" || true)
+  if [[ "${effective:-0}" == "0" ]]; then
+    rm -f "$url_tmp"
+    echo "::notice::urls-from produced no URLs; nothing to submit"
+    {
+      echo "## indexnow"
+      echo ""
+      echo "- urls-from: empty input, submit skipped"
+      echo "- version: \`${VERSION:-?}\`"
+    } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+    {
+      echo "exit-code=0"
+      echo "submitted-count=0"
+      echo "failed-count=0"
+      echo "report=indexnow ${VERSION:-?}: urls-from empty, submit skipped"
+    } >> "${GITHUB_OUTPUT:-/dev/null}"
+    exit 0
+  fi
+
+  args+=(--file "$url_tmp")
 fi
 
+[[ -n "${INPUT_CONFIG:-}"          ]] && args+=(--config          "$INPUT_CONFIG")
 [[ -n "${INPUT_SITEMAP_SINCE:-}"   ]] && args+=(--sitemap-since   "$INPUT_SITEMAP_SINCE")
 [[ -n "${INPUT_SITEMAP_TIMEOUT:-}" ]] && args+=(--sitemap-timeout "$INPUT_SITEMAP_TIMEOUT")
 [[ -n "${INPUT_FAIL_ON:-}"         ]] && args+=(--fail-on         "$INPUT_FAIL_ON")

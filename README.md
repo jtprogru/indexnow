@@ -15,7 +15,21 @@ GitHub Action и CLI для протокола [IndexNow](https://www.indexnow.o
     sitemap: https://example.com/sitemap.xml
 ```
 
-Source-of-URLs может быть `urls` (multiline), `file`, или `sitemap`. Inputs зеркалят флаги CLI; outputs (`exit-code`, `submitted-count`, `failed-count`, `report`) парсятся downstream-шагами. Полный референс и рецепты CI (push в `content/`, schedule, after-build) — [docs → GitHub Action](https://jtprogru.github.io/indexnow/guides/github-action/).
+Если sitemap не подходит — соберите список URL'ов произвольным shell-сниппетом через `urls-from`:
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    fetch-depth: 0
+- uses: jtprogru/indexnow@v0
+  with:
+    key: ${{ secrets.INDEXNOW_KEY }}
+    urls-from: |
+      git diff --name-only "${{ github.event.before }}..HEAD" -- 'content/**/*.md' |
+        sed 's#^content/\(.*\)\.md$#https://example.com/\1/#'
+```
+
+Source-of-URLs может быть `urls` (multiline), `file`, `sitemap`, или `urls-from`. Inputs зеркалят флаги CLI; outputs (`exit-code`, `submitted-count`, `failed-count`, `report`) парсятся downstream-шагами. Полный референс и рецепты CI (push в `content/`, schedule, custom sources) — [docs → GitHub Action](https://jtprogru.github.io/indexnow/guides/github-action/).
 
 ## Use as a CLI
 

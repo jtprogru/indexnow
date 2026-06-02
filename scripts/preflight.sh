@@ -6,11 +6,12 @@
 set -euo pipefail
 
 sources=0
-[[ -n "${INPUT_URLS:-}"    ]] && sources=$((sources + 1))
-[[ -n "${INPUT_FILE:-}"    ]] && sources=$((sources + 1))
-[[ -n "${INPUT_SITEMAP:-}" ]] && sources=$((sources + 1))
+[[ -n "${INPUT_URLS:-}"      ]] && sources=$((sources + 1))
+[[ -n "${INPUT_FILE:-}"      ]] && sources=$((sources + 1))
+[[ -n "${INPUT_SITEMAP:-}"   ]] && sources=$((sources + 1))
+[[ -n "${INPUT_URLS_FROM:-}" ]] && sources=$((sources + 1))
 
 if (( sources != 1 )); then
-  echo "::error::exactly one of inputs.urls / inputs.file / inputs.sitemap must be set (got ${sources})" >&2
+  echo "::error::exactly one of inputs.urls / inputs.file / inputs.sitemap / inputs.urls-from must be set (got ${sources})" >&2
   exit 2
 fi
