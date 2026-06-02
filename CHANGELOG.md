@@ -20,6 +20,15 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 
 -
 
+## [0.6.0] — 2026-06-02
+
+### Added
+
+- New Action input `urls-from`: a bash snippet whose stdout is treated as the URL list (one URL per line, `#`-prefixed lines are comments, blank lines ignored). Runs in `$GITHUB_WORKSPACE`, so `git diff`, locally-checked-out files, and other tooling are immediately available. Mutually exclusive with `urls` / `file` / `sitemap`. Empty output is an explicit success — the step exits 0 with `submitted-count=0` and `submit` is not invoked, which lets CI runs on pushes that don't touch content finish cleanly. A non-zero exit from the snippet fails the step (stderr passes through to the step log). Designed for `git diff | sed` content-pipeline recipes where the path-to-URL mapping is too project-specific to bake into indexnow.
+- New Action input `config`: path (relative to `$GITHUB_WORKSPACE`) to an indexnow yaml config, mapped to `--config`. Closes a gap from v0.5.0 — previously the Action had no way to point at a `.indexnow.yaml` checked into the repo.
+
+[0.6.0]: https://github.com/jtprogru/indexnow/releases/tag/v0.6.0
+
 ## [0.5.0] — 2026-06-02
 
 ### Added
