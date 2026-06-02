@@ -2,9 +2,26 @@
 
 📚 **Documentation:** [jtprogru.github.io/indexnow](https://jtprogru.github.io/indexnow/) (EN + RU).
 
-CLI-клиент протокола [IndexNow](https://www.indexnow.org/documentation) для контентных пайплайнов. Один HTTP-вызов уведомляет участвующие поисковики (Bing, Yandex, Naver, Seznam, Yep, ...) об изменении URL — по спецификации submission к любому эндпоинту шарится со всеми остальными участниками.
+GitHub Action и CLI для протокола [IndexNow](https://www.indexnow.org/documentation): одним HTTP-вызовом уведомляет участвующие поисковики (Bing, Yandex, Naver, Seznam, Yep, ...) об изменении URL — по спеке submission к любому эндпоинту шарится со всеми остальными.
 
-## Install
+## Use as a GitHub Action (recommended)
+
+Самый короткий путь — один шаг в workflow:
+
+```yaml
+- uses: jtprogru/indexnow@v0
+  with:
+    key: ${{ secrets.INDEXNOW_KEY }}
+    sitemap: https://example.com/sitemap.xml
+```
+
+Source-of-URLs может быть `urls` (multiline), `file`, или `sitemap`. Inputs зеркалят флаги CLI; outputs (`exit-code`, `submitted-count`, `failed-count`, `report`) парсятся downstream-шагами. Полный референс и рецепты CI (push в `content/`, schedule, after-build) — [docs → GitHub Action](https://jtprogru.github.io/indexnow/guides/github-action/).
+
+## Use as a CLI
+
+Когда нужен локальный запуск, скрипт по cron'у, или интеграция с другим CI — ставите бинарь.
+
+### Install
 
 Через Homebrew (macOS / Linux):
 
@@ -21,22 +38,7 @@ go install github.com/jtprogru/indexnow/cmd/indexnow@latest
 
 Готовые бинарники под Linux / macOS / FreeBSD (amd64, arm64) — на странице [Releases](https://github.com/jtprogru/indexnow/releases).
 
-## Uninstall
-
-Homebrew:
-
-```bash
-brew uninstall indexnow
-brew untap jtprogru/tap   # опционально
-```
-
-Установленный через `go install` или вручную:
-
-```bash
-rm "$(command -v indexnow)"
-```
-
-## Usage
+### Usage
 
 ```bash
 indexnow --help
@@ -69,13 +71,13 @@ indexnow submit --sitemap https://example.com/sitemap.xml
 indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 ```
 
-### Источники URL
+#### Источники URL
 
 Ровно один из: позиционные аргументы, `--file PATH`, `--stdin`, `--sitemap PATH|URL`.
 
 `--sitemap-since <RFC3339>` фильтрует записи по `<lastmod>` — старее переданного времени отбрасываются. Записи без `<lastmod>` всегда проходят: «нет сигнала» трактуется как «могло измениться», что безопасный дефолт для IndexNow.
 
-### Эндпоинты
+#### Эндпоинты
 
 `--endpoint` принимает алиас или полный URL:
 
@@ -90,7 +92,7 @@ indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 
 По спеке достаточно одного — submission шарится с остальными участниками.
 
-### Окружение
+#### Окружение
 
 | ENV                      | Назначение                                |
 |--------------------------|-------------------------------------------|
@@ -99,7 +101,7 @@ indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 | `INDEXNOW_KEY_LOCATION`  | абсолютный URL к hosted key-файлу         |
 | `INDEXNOW_ENDPOINT`      | алиас или URL эндпоинта                   |
 
-### Поведение по ошибкам
+#### Поведение по ошибкам
 
 `--fail-on any|4xx|5xx|never` — определяет, какие ответы поднимают exit code в 1. По умолчанию `any` (любая не-2xx или transport error → exit 1).
 
@@ -109,25 +111,28 @@ indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 - `1` — submission failed (HTTP / network / fail-on triggered)
 - `2` — usage error (неверные флаги, нет источника URL, нет ключа)
 
-### Ретраи
+#### Ретраи
 
 Ретраит 429, 5xx и transport-ошибки с экспоненциальным backoff'ом и jitter'ом. Уважает заголовок `Retry-After` (и секунды, и HTTP-date). Настраивается флагами `--max-retries`, `--base-backoff`, `--max-backoff`.
 
-### Батчинг
+#### Батчинг
 
 `SubmitBatch` автоматически разбивает входной список по `MaxBatchSize = 10000` (лимит протокола), отправляя несколько POST-запросов и возвращая по результату на батч.
 
-## Use as a GitHub Action
+### Uninstall
 
-```yaml
-- uses: jtprogru/indexnow@v0
-  with:
-    key: ${{ secrets.INDEXNOW_KEY }}
-    sitemap: https://example.com/sitemap.xml
-    endpoint: bing,yandex
+Homebrew:
+
+```bash
+brew uninstall indexnow
+brew untap jtprogru/tap   # опционально
 ```
 
-Полная справка по `inputs`/`outputs` и рецепты CI (push в `content/`, расписание, после Hugo/Eleventy-build) — [docs → GitHub Action](https://jtprogru.github.io/indexnow/guides/github-action/).
+Установленный через `go install` или вручную:
+
+```bash
+rm "$(command -v indexnow)"
+```
 
 ## Development
 

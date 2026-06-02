@@ -53,11 +53,13 @@ plugins:
           nav_translations:
             Home: Главная
             Getting started: Старт
+            GitHub Action: GitHub Action
+            CLI: CLI
+            Overview: Обзор
             Commands: Команды
             Guides: Руководства
             Endpoints: Эндпоинты
             Configuration: Конфигурация
-            GitHub Action: GitHub Action
             Architecture: Архитектура
             Contributing: Контрибьютинг
 
@@ -90,14 +92,14 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
-  - Commands:
+  - GitHub Action: guides/github-action.md
+  - CLI:
       - Overview: commands/index.md
       - indexnow submit: commands/submit.md
       - indexnow verify: commands/verify.md
   - Guides:
       - Endpoints: guides/endpoints.md
       - Configuration: guides/configuration.md
-      - GitHub Action: guides/github-action.md
   - Architecture: architecture.md
   - Contributing: contributing.md
 
