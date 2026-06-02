@@ -117,6 +117,18 @@ indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 
 `SubmitBatch` автоматически разбивает входной список по `MaxBatchSize = 10000` (лимит протокола), отправляя несколько POST-запросов и возвращая по результату на батч.
 
+## Use as a GitHub Action
+
+```yaml
+- uses: jtprogru/indexnow@v0
+  with:
+    key: ${{ secrets.INDEXNOW_KEY }}
+    sitemap: https://example.com/sitemap.xml
+    endpoint: bing,yandex
+```
+
+Полная справка по `inputs`/`outputs` и рецепты CI (push в `content/`, расписание, после Hugo/Eleventy-build) — [docs → GitHub Action](https://jtprogru.github.io/indexnow/guides/github-action/).
+
 ## Development
 
 ```bash

@@ -57,6 +57,7 @@ plugins:
             Guides: Руководства
             Endpoints: Эндпоинты
             Configuration: Конфигурация
+            GitHub Action: GitHub Action
             Architecture: Архитектура
             Contributing: Контрибьютинг
 
@@ -96,6 +97,7 @@ nav:
   - Guides:
       - Endpoints: guides/endpoints.md
       - Configuration: guides/configuration.md
+      - GitHub Action: guides/github-action.md
   - Architecture: architecture.md
   - Contributing: contributing.md
 

@@ -10,7 +10,7 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 
 ### Added
 
--
+- Reusable GitHub Action: `jtprogru/indexnow@v0`. Composite action that downloads the goreleaser binary for the runner's OS/arch from the matching tag, sha256-verifies it against the release's `checksums.txt`, caches it in `runner.tool_cache` keyed by version-os-arch, and runs `indexnow submit` with the workflow inputs. Supports `ubuntu-*` and `macos-*` runners (x64 and arm64); Windows fails explicitly in preflight with a pointer to the supported runners. Inputs mirror `submit` flags 1:1 (`urls`/`file`/`sitemap`, `key`, `host`, `endpoint`, `fail-on`, retry knobs, `dry-run`, `verbose`, `quiet`, `user-agent`, …). Outputs: `exit-code`, `submitted-count`, `failed-count`, `report` (also written to `$GITHUB_STEP_SUMMARY`). Sensitive values (`key`, `key-location`) are passed via env, not flags, so `set -x` debugging cannot leak them. Companion workflow `release-major-alias.yaml` force-moves the floating `vX` and `vX.Y` tags on every `vX.Y.Z` release, so `@v0` always points to the latest release in that major.
 
 ### Changed
 

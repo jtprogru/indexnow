@@ -1,0 +1,179 @@
+name: indexnow
+description: Submit URLs to the IndexNow protocol (Bing, Yandex, Naver, Seznam, Yep, ...) from a workflow.
+author: Mikhail Savin
+branding:
+  icon: rss
+  color: blue
+
+inputs:
+  key:
+    description: IndexNow key (8..128 chars, [A-Za-z0-9-]). Required.
+    required: true
+
+  # URL sources — exactly one of these must be set.
+  urls:
+    description: Newline-separated list of URLs.
+    required: false
+    default: ""
+  file:
+    description: Path (relative to workspace) to a file with one URL per line.
+    required: false
+    default: ""
+  sitemap:
+    description: URL or filesystem path to a sitemap.xml (.gz / <sitemapindex> are followed).
+    required: false
+    default: ""
+
+  # Sitemap modifiers.
+  sitemap-since:
+    description: RFC3339 timestamp; drop entries with <lastmod> older than this.
+    required: false
+    default: ""
+  sitemap-timeout:
+    description: Per-request HTTP timeout for sitemap fetches.
+    required: false
+    default: ""
+
+  # Submit config.
+  host:
+    description: Site host (e.g. example.com). Inferred from first URL if empty.
+    required: false
+    default: ""
+  key-location:
+    description: Absolute URL to the hosted key file. Derived from host+key if empty.
+    required: false
+    default: ""
+  endpoint:
+    description: Endpoint alias(es) or full URL(s), comma-separated (api|bing|yandex|naver|seznam|yep).
+    required: false
+    default: "api"
+  user-agent:
+    description: HTTP User-Agent header. Defaults to `indexnow/<version>`.
+    required: false
+    default: ""
+
+  # Behavior.
+  fail-on:
+    description: When to set non-zero exit — any|4xx|5xx|never.
+    required: false
+    default: "any"
+  quiet:
+    description: Suppress the CLI's stdout in the step log. Outputs/summary still populate.
+    required: false
+    default: "false"
+  verbose:
+    description: Emit slog lifecycle/retry events to stderr.
+    required: false
+    default: "false"
+  dry-run:
+    description: Print what would be sent and exit without contacting the endpoint.
+    required: false
+    default: "false"
+
+  # Retry knobs (empty = use CLI defaults).
+  max-retries:
+    description: Maximum retry attempts on 429/5xx/transport.
+    required: false
+    default: ""
+  base-backoff:
+    description: Initial retry backoff (Go duration, e.g. 200ms).
+    required: false
+    default: ""
+  max-backoff:
+    description: Max retry backoff (Go duration, e.g. 5s).
+    required: false
+    default: ""
+
+  # Action plumbing.
+  version:
+    description: indexnow release to install. Empty = pinned to the Action's tag; "latest" = newest release.
+    required: false
+    default: ""
+  github-token:
+    description: Token used to call the GitHub Releases API (avoids unauthenticated rate-limit).
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  exit-code:
+    description: Exit code of `indexnow submit`.
+    value: ${{ steps.run.outputs.exit-code }}
+  submitted-count:
+    description: Sum of urlCount across all batches (0 in dry-run mode).
+    value: ${{ steps.run.outputs.submitted-count }}
+  failed-count:
+    description: Number of batches that finished non-2xx or with an error (0 in dry-run mode).
+    value: ${{ steps.run.outputs.failed-count }}
+  report:
+    description: One-line human summary; also written to $GITHUB_STEP_SUMMARY.
+    value: ${{ steps.run.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve indexnow version
+      id: ver
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: ${{ github.action_path }}/scripts/resolve-version.sh
+
+    - name: Detect runner platform
+      id: plat
+      shell: bash
+      run: ${{ github.action_path }}/scripts/detect-platform.sh
+
+    - name: Restore indexnow binary cache
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.tool_cache }}/indexnow/${{ steps.ver.outputs.version }}/${{ steps.plat.outputs.os }}-${{ steps.plat.outputs.arch }}
+        key: indexnow-${{ steps.ver.outputs.version }}-${{ steps.plat.outputs.os }}-${{ steps.plat.outputs.arch }}
+
+    - name: Install indexnow
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        VERSION: ${{ steps.ver.outputs.version }}
+        OS: ${{ steps.plat.outputs.os }}
+        ARCH: ${{ steps.plat.outputs.arch }}
+      run: ${{ github.action_path }}/scripts/install.sh
+
+    - name: Add indexnow to PATH
+      shell: bash
+      run: echo "${{ runner.tool_cache }}/indexnow/${{ steps.ver.outputs.version }}/${{ steps.plat.outputs.os }}-${{ steps.plat.outputs.arch }}" >> "$GITHUB_PATH"
+
+    - name: Preflight
+      shell: bash
+      env:
+        INPUT_URLS: ${{ inputs.urls }}
+        INPUT_FILE: ${{ inputs.file }}
+        INPUT_SITEMAP: ${{ inputs.sitemap }}
+      run: ${{ github.action_path }}/scripts/preflight.sh
+
+    - name: Run indexnow submit
+      id: run
+      shell: bash
+      env:
+        VERSION: ${{ steps.ver.outputs.version }}
+        # Sensitive / config values via env (CLI reads INDEXNOW_*).
+        INDEXNOW_KEY: ${{ inputs.key }}
+        INDEXNOW_HOST: ${{ inputs.host }}
+        INDEXNOW_KEY_LOCATION: ${{ inputs.key-location }}
+        INDEXNOW_ENDPOINT: ${{ inputs.endpoint }}
+        INDEXNOW_USER_AGENT: ${{ inputs.user-agent }}
+        # Non-sensitive flags via env.
+        INPUT_URLS: ${{ inputs.urls }}
+        INPUT_FILE: ${{ inputs.file }}
+        INPUT_SITEMAP: ${{ inputs.sitemap }}
+        INPUT_SITEMAP_SINCE: ${{ inputs.sitemap-since }}
+        INPUT_SITEMAP_TIMEOUT: ${{ inputs.sitemap-timeout }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_QUIET: ${{ inputs.quiet }}
+        INPUT_VERBOSE: ${{ inputs.verbose }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
+        INPUT_BASE_BACKOFF: ${{ inputs.base-backoff }}
+        INPUT_MAX_BACKOFF: ${{ inputs.max-backoff }}
+      run: ${{ github.action_path }}/scripts/run.sh

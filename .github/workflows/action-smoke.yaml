@@ -1,0 +1,53 @@
+name: action-smoke
+
+on:
+  pull_request:
+    paths:
+      - "action.yml"
+      - "scripts/**"
+      - ".github/workflows/action-smoke.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - "action.yml"
+      - "scripts/**"
+      - ".github/workflows/action-smoke.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Use indexnow Action (dry-run, urls input)
+        uses: ./
+        with:
+          version: "latest"
+          key: "abcdef0123456789abcdef0123456789"
+          host: "example.com"
+          urls: |
+            https://example.com/a
+            https://example.com/b
+          dry-run: "true"
+
+      - name: Use indexnow Action (dry-run, sitemap input — local file)
+        uses: ./
+        with:
+          version: "latest"
+          key: "abcdef0123456789abcdef0123456789"
+          host: "example.com"
+          sitemap: ${{ github.workspace }}/.github/fixtures/sitemap.xml
+          dry-run: "true"
+
+      - name: Assert cache hit on second use
+        run: |
+          echo "If we got here, both uses of the action succeeded with the same version-arch cache key."

@@ -1,0 +1,33 @@
+name: release-major-alias
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  alias:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Move major and minor aliases
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"   # e.g. v0.5.1
+          major="${tag%%.*}"                # v0
+          minor="${tag%.*}"                 # v0.5
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for alias in "$major" "$minor"; do
+            echo "Forcing ${alias} → ${tag} (${GITHUB_SHA})"
+            git tag -f "$alias" "$tag"
+            git push origin "refs/tags/${alias}" --force
+          done
