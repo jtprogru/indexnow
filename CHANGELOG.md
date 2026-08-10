@@ -20,6 +20,19 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 
 -
 
+## [0.7.1] — 2026-08-10
+
+Maintenance release: no behavior changes in the CLI or the Action, dependency and toolchain refresh only.
+
+### Changed
+
+- `actions/cache` in the composite action bumped `v4` → `v6`. This is the only change that touches `action.yml`; the cache key layout (`indexnow-<version>-<os>-<arch>`) is unchanged, so existing caches keep working and consumers of `jtprogru/indexnow@v0` need no action.
+- CI workflows moved to the current major of every action in use: `actions/checkout` `v6` → `v7`, `actions/setup-go` `v6` → `v7`, `actions/setup-python` `v6` → `v7`, `codecov/codecov-action` `v6` → `v7`, and the pinned `goreleaser/goreleaser-action` digest updated to `v7.2.3`.
+- `go.yaml.in/yaml/v3` bumped `3.0.4` → `3.0.5`.
+- Added a `markdownlint` config so docs and changelog lint consistently across local runs and CI.
+
+[0.7.1]: https://github.com/jtprogru/indexnow/releases/tag/v0.7.1
+
 ## [0.7.0] — 2026-06-02
 
 ### Added
