@@ -27,7 +27,7 @@
 | `urls` | один из | — | URL'ы через перевод строки. |
 | `file` | один из | — | Путь к файлу (по одному URL на строку). |
 | `sitemap` | один из | — | URL или локальный путь до `sitemap.xml` (`.gz` и `<sitemapindex>` раскрываются). |
-| `urls-from` | один из | — | Bash-сниппет, чей stdout трактуется как список URL'ов. См. [Кастомные источники URL](#kastomnye-istochniki-url-cherez-urls-from). |
+| `urls-from` | один из | — | Bash-сниппет, чей stdout трактуется как список URL'ов. См. [Кастомные источники URL](#кастомные-источники-url-через-urls-from). |
 | `sitemap-since` | нет | — | RFC3339; записи со старее `<lastmod>` отбрасываются. |
 | `sitemap-timeout` | нет | дефолт CLI (`30s`) | Per-request HTTP timeout для sitemap. |
 | `host` | нет | вывод из первого URL | Хост сайта (например `example.com`). |
