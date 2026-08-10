@@ -24,6 +24,6 @@ jobs:
         with:
           python-version: "3.x"
       - name: Install MkDocs + plugins
-        run: pip install -r docs/requirements.txt
+        run: make docs-install
       - name: Build & deploy to gh-pages
-        run: mkdocs gh-deploy --force --no-history
+        run: make docs-deploy
