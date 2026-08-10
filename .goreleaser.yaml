@@ -50,6 +50,15 @@ changelog:
       - "^docs:"
       - "^test:"
 
+# Without this, re-running the release job on a tag whose release already exists
+# dies with `422 already_exists` on every asset, and the publishers that run
+# after the SCM release (the homebrew cask) are never reached. Hit in v0.7.1,
+# where the first run published the release but failed on the cask, and the
+# retry could not get past the uploads. GitHub-only knob. Note that `mode:` is
+# a different thing — it governs the release notes body, not the artifacts.
+release:
+  replace_existing_artifacts: true
+
 signs:
   - artifacts: checksum
     cmd: gpg2
