@@ -78,7 +78,7 @@ indexnow submit https://example.com/posts/foo \
 
 Trade-off: каждый submission должен нести явный `--key-location` (или иметь его в env / config). В default-режиме это деривится автоматически.
 
-Решите один раз, задокументируйте в `.indexnow.yaml` репо — и забудьте.
+Решите один раз, положите `key_location:` в `.indexnow.yaml` репо и укажите на него через `--config .indexnow.yaml` (CLI) или input `config:` у action'а — см. ниже.
 
 ## 4. Wire it up — где ключ живёт в момент использования
 
@@ -87,17 +87,24 @@ Trade-off: каждый submission должен нести явный `--key-loc
 | Где | Аудитория | Механизм |
 |---|---|---|
 | Env `INDEXNOW_KEY` | Локальный shell, ad-hoc CLI | `export INDEXNOW_KEY=...` |
-| `~/.config/indexnow/config.yaml` | Машина разработчика, persistent | YAML-поле `key:` |
-| `.indexnow.yaml` в репо | Проектные defaults (host, endpoint) | YAML; **`key:` в публичном репо НЕ коммитьте** |
+| `~/.config/indexnow/config.yaml` | Машина разработчика, persistent | YAML-поле `key:` — единственный путь, который читается сам |
+| `.indexnow.yaml` в репо | Проектные defaults (host, endpoint) | YAML; нужен `--config` / `config:`. **`key:` в публичном репо НЕ коммитьте** |
 | GitHub Actions secret | CI-workflow | `${{ secrets.INDEXNOW_KEY }}` → action input `key:` |
 
 Precedence (более конкретное побеждает): CLI-флаг > environment > config-файл > built-in default.
+
+Сам по себе подхватывается только `$XDG_CONFIG_HOME/indexnow/config.yaml` (с фоллбеком на `$HOME/.config/indexnow/config.yaml`). Лежащий в репозитории `.indexnow.yaml` автоматически **не** находится — укажите его явно:
+
+```bash
+indexnow submit --config .indexnow.yaml https://example.com/posts/foo
+```
 
 Типовая CI-настройка:
 
 1. Положите ключ в repository-секрет `INDEXNOW_KEY`.
 2. Не-секретные defaults (`host`, `endpoint`, `user_agent`) — в коммитнутый `.indexnow.yaml`.
-3. Передавайте секрет в input action'а; action прокинет его в `INDEXNOW_KEY` env'у внутри.
+3. Укажите на него у action'а: `config: .indexnow.yaml` (путь относительно `$GITHUB_WORKSPACE`, значит в job нужен `actions/checkout`).
+4. Передавайте секрет в input `key:` action'а; action прокинет его в env `INDEXNOW_KEY` внутри.
 
 ## 5. Verify — убедиться, что bootstrap прошёл
 

@@ -78,7 +78,7 @@ indexnow submit https://example.com/posts/foo \
 
 Trade-off: every submission has to carry the explicit `--key-location` (or have it set via env / config). With the default mode, that's derived automatically.
 
-Decide once, document it in your repo's `.indexnow.yaml`, never think about it again.
+Decide once, put `key_location:` in your repo's `.indexnow.yaml`, and point at it with `--config .indexnow.yaml` (CLI) or the action's `config:` input — see below.
 
 ## 4. Wire it up — where the key lives at use-time
 
@@ -87,17 +87,24 @@ The key shows up in three orthogonal places. Each is for a different audience.
 | Where | Audience | Mechanism |
 |---|---|---|
 | `INDEXNOW_KEY` env var | Local shell, ad-hoc CLI runs | `export INDEXNOW_KEY=...` |
-| `~/.config/indexnow/config.yaml` | Developer machine, persistent | YAML `key:` field |
-| `.indexnow.yaml` in repo | Project-level defaults (host, endpoint) | YAML; **do not commit `key:` to a public repo** |
+| `~/.config/indexnow/config.yaml` | Developer machine, persistent | YAML `key:` field — the only config path read automatically |
+| `.indexnow.yaml` in repo | Project-level defaults (host, endpoint) | YAML; requires `--config` / `config:`. **Do not commit `key:` to a public repo** |
 | GitHub Actions secret | CI workflow | `${{ secrets.INDEXNOW_KEY }}` → action `key:` input |
 
 Precedence (most-specific wins): CLI flag > environment > config file > built-in default.
+
+Only `$XDG_CONFIG_HOME/indexnow/config.yaml` (falling back to `$HOME/.config/indexnow/config.yaml`) is picked up on its own. A `.indexnow.yaml` sitting in your repo is **not** auto-discovered — pass it explicitly:
+
+```bash
+indexnow submit --config .indexnow.yaml https://example.com/posts/foo
+```
 
 For a typical CI setup:
 
 1. Store the key as a repository secret named `INDEXNOW_KEY`.
 2. Keep non-secret defaults (`host`, `endpoint`, `user_agent`) in a checked-in `.indexnow.yaml`.
-3. Pass the secret into the action input; the action plumbs it through as `INDEXNOW_KEY` env.
+3. Point the action at it with `config: .indexnow.yaml` (path is relative to `$GITHUB_WORKSPACE`, so the job needs `actions/checkout`).
+4. Pass the secret into the action's `key:` input; the action plumbs it through as `INDEXNOW_KEY` env.
 
 ## 5. Verify — make sure the bootstrap worked
 
