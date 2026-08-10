@@ -51,5 +51,5 @@ indexnow submit --file urls.txt --endpoint bing,yandex --output json | jq '.[].s
 
 - **[GitHub Action](guides/github-action.md)** — inputs, outputs, рецепты CI.
 - **[Старт](getting-started.md)** — установка CLI и первый вызов.
-- **[CLI-команды](commands/index.md)** — референс `submit` и `verify`.
-- **[Руководства](guides/endpoints.md)** — эндпоинты, конфигурация, ENV.
+- **[CLI-команды](commands/index.md)** — референс `submit`, `key gen`, `key verify`.
+- **[Руководства](guides/endpoints.md)** — эндпоинты, жизненный цикл ключа, конфигурация, ENV.
