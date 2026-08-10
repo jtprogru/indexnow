@@ -160,12 +160,12 @@ rm "$(command -v indexnow)"
 ## Development
 
 ```bash
-task          # список задач
-task build    # собрать в ./dist/indexnow
-task test     # go test --short -coverprofile=cover.out -v ./...
-task test:race
-task lint     # golangci-lint run
-task ci       # lint + race tests (квик локальный pre-push)
+make            # список таргетов
+make build      # собрать в ./dist/indexnow
+make test       # go test --short -coverprofile=cover.out -v ./...
+make test-race  # то же под race-детектором — этим CI и гоняет тесты
+make lint       # golangci-lint run
+make ci         # lint + race tests (квик локальный pre-push)
 ```
 
 ## License

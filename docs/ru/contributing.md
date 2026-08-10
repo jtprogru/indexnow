@@ -7,15 +7,17 @@ PR'ы приветствуются. Проект маленький, церем�
 ```bash
 git clone https://github.com/jtprogru/indexnow
 cd indexnow
-task          # список доступных задач
-task build    # бинарь в ./dist
-task ci       # lint + race tests — то, что гоняет CI
+make          # список доступных таргетов
+make build    # бинарь в ./dist
+make ci       # lint + race tests — то, что гоняет CI
 ```
+
+CI зовёт те же таргеты (`make test-race`, `make docs-install`, `make docs-deploy`), а не дублирует команды инлайном — поэтому зелёный локальный `make ci` значит ровно то же, что зелёный workflow.
 
 ## Стиль
 
-- `gofmt -s` (через `task fmt`).
-- Конфиг `golangci-lint` — в `.golangci.yaml`. Запуск: `task lint`.
+- `gofmt -s` (через `make fmt`).
+- Конфиг `golangci-lint` — в `.golangci.yaml`. Запуск: `make lint`.
 - Тесты в CI идут с `-race`; держите их зелёными под race-детектором.
 
 ## Сообщения коммитов

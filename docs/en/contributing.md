@@ -7,15 +7,17 @@ PRs welcome. The project is small enough that there is no ceremony.
 ```bash
 git clone https://github.com/jtprogru/indexnow
 cd indexnow
-task          # list available targets
-task build    # binary into ./dist
-task ci       # lint + race tests — what CI runs
+make          # list available targets
+make build    # binary into ./dist
+make ci       # lint + race tests — what CI runs
 ```
+
+CI calls the same targets (`make test-race`, `make docs-install`, `make docs-deploy`) rather than repeating the commands inline, so a green `make ci` locally means the same thing it means in the workflow.
 
 ## Style
 
-- `gofmt -s` (run via `task fmt`).
-- `golangci-lint` config in `.golangci.yaml`. Run `task lint`.
+- `gofmt -s` (run via `make fmt`).
+- `golangci-lint` config in `.golangci.yaml`. Run `make lint`.
 - Tests run with `-race` in CI; keep them passing under the race detector.
 
 ## Commit messages
