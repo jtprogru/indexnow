@@ -9,7 +9,7 @@
     sitemap: https://example.com/sitemap.xml
 ```
 
-Пинуйте на мажор (`@v0`) для floating-but-stable, на тег (`@v0.7.1`) для точности, на SHA коммита — для параноидального supply-chain режима.
+Пинуйте на мажор (`@v0`) для floating-but-stable — он force-двигается на каждый новый релиз — либо на точный тег (`@vX.Y.Z`, выберите на странице [Releases](https://github.com/jtprogru/indexnow/releases)), если версию нужно заморозить, либо на SHA коммита для параноидального supply-chain режима.
 
 ## Поддерживаемые раннеры
 

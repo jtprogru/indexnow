@@ -36,6 +36,8 @@ make docs-build     # mkdocs build --strict
 
 A push to `main` touching `docs/**` or `mkdocs.yml` deploys to GitHub Pages.
 
+Do not name a concrete release in the docs. Examples use the floating `@v0`, which the alias workflow moves onto every release, and the placeholder `@vX.Y.Z` where an exact pin is being discussed. A real version number in prose turns every release into a documentation edit, and the docs go stale the moment somebody forgets.
+
 ## Releasing
 
 Maintainers cut the CHANGELOG entry first, then tag from `main` with an annotated, GPG-signed tag:

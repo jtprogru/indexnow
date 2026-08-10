@@ -9,7 +9,7 @@ Use indexnow as a step in any GitHub Actions workflow. The action downloads the 
     sitemap: https://example.com/sitemap.xml
 ```
 
-Pin to a major (`@v0`) for floating-but-stable, a tag (`@v0.7.1`) for exactness, or a commit SHA for supply-chain paranoia.
+Pin to a major (`@v0`) for floating-but-stable — it is force-moved onto every new release — or to an exact tag (`@vX.Y.Z`, pick one from [Releases](https://github.com/jtprogru/indexnow/releases)) when you want the version frozen, or to a commit SHA for supply-chain paranoia.
 
 ## Supported runners
 
