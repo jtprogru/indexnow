@@ -51,5 +51,5 @@ indexnow submit --file urls.txt --endpoint bing,yandex --output json | jq '.[].s
 
 - **[GitHub Action](guides/github-action.md)** — inputs, outputs, CI recipes.
 - **[Getting started](getting-started.md)** — CLI install and first call.
-- **[CLI commands](commands/index.md)** — reference for `submit` and `verify`.
-- **[Guides](guides/endpoints.md)** — endpoints, configuration, ENV.
+- **[CLI commands](commands/index.md)** — reference for `submit`, `key gen`, `key verify`.
+- **[Guides](guides/endpoints.md)** — endpoints, key lifecycle, configuration, ENV.

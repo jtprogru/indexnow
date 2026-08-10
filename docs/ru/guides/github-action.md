@@ -9,7 +9,7 @@
     sitemap: https://example.com/sitemap.xml
 ```
 
-Пинуйте на мажор (`@v0`) для floating-but-stable, на тег (`@v0.5.0`) для точности, на SHA коммита — для параноидального supply-chain режима.
+Пинуйте на мажор (`@v0`) для floating-but-stable — он force-двигается на каждый новый релиз — либо на точный тег (`@vX.Y.Z`, выберите на странице [Releases](https://github.com/jtprogru/indexnow/releases)), если версию нужно заморозить, либо на SHA коммита для параноидального supply-chain режима.
 
 ## Поддерживаемые раннеры
 
@@ -27,7 +27,7 @@
 | `urls` | один из | — | URL'ы через перевод строки. |
 | `file` | один из | — | Путь к файлу (по одному URL на строку). |
 | `sitemap` | один из | — | URL или локальный путь до `sitemap.xml` (`.gz` и `<sitemapindex>` раскрываются). |
-| `urls-from` | один из | — | Bash-сниппет, чей stdout трактуется как список URL'ов. См. [Кастомные источники URL](#kastomnye-istochniki-url-cherez-urls-from). |
+| `urls-from` | один из | — | Bash-сниппет, чей stdout трактуется как список URL'ов. См. [Кастомные источники URL](#кастомные-источники-url-через-urls-from). |
 | `sitemap-since` | нет | — | RFC3339; записи со старее `<lastmod>` отбрасываются. |
 | `sitemap-timeout` | нет | дефолт CLI (`30s`) | Per-request HTTP timeout для sitemap. |
 | `host` | нет | вывод из первого URL | Хост сайта (например `example.com`). |
@@ -75,11 +75,33 @@ jobs:
         with:
           key: ${{ secrets.INDEXNOW_KEY }}
           sitemap: https://example.com/sitemap.xml
-          sitemap-since: ${{ github.event.before }}
           endpoint: bing,yandex
 ```
 
-`sitemap-since: ${{ github.event.before }}` — строка, action прокидывает её в `--sitemap-since` (парсит RFC3339). Для push-event'ов это timestamp предыдущего HEAD: записи со старее `<lastmod>` пропускаются, остальное уходит.
+Каждый push пересубмитит весь sitemap. IndexNow идемпотентен, цена — один HTTP-вызов на эндпоинт; для большинства сайтов это правильный дефолт.
+
+#### Отправлять только изменившееся
+
+`sitemap-since` уходит напрямую в `--sitemap-since`, который парсит **только RFC3339**. `${{ github.event.before }}` — это *SHA коммита*, а не timestamp: с ним step падает с exit `2`. Считайте настоящий timestamp отдельным шагом:
+
+```yaml
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0          # нужно, чтобы резолвился github.event.before
+      - id: since
+        run: echo "ts=$(git show -s --format=%cI '${{ github.event.before }}')" >> "$GITHUB_OUTPUT"
+      - uses: jtprogru/indexnow@v0
+        with:
+          key: ${{ secrets.INDEXNOW_KEY }}
+          sitemap: https://example.com/sitemap.xml
+          sitemap-since: ${{ steps.since.outputs.ts }}
+```
+
+`git show -s --format=%cI` отдаёт строгий ISO 8601 (`2026-08-10T12:00:00+03:00`), который `--sitemap-since` принимает. Записи sitemap без `<lastmod>` фильтр всё равно проходят — «нет сигнала» трактуется как «могло измениться».
 
 ### Каждый час по расписанию
 
@@ -98,7 +120,19 @@ jobs:
           sitemap: https://example.com/sitemap.xml
 ```
 
-Не хочется возиться с арифметикой дат в YAML — просто не передавайте `sitemap-since`, и каждый запуск пересубмитит весь sitemap. IndexNow идемпотентен, цена — HTTP-вызов.
+Каждый запуск пересубмитит весь sitemap. Если нужно сузить до последнего часа — считайте границу отдельным шагом, а не выражением в YAML:
+
+```yaml
+      - id: since
+        run: echo "ts=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: jtprogru/indexnow@v0
+        with:
+          key: ${{ secrets.INDEXNOW_KEY }}
+          sitemap: https://example.com/sitemap.xml
+          sitemap-since: ${{ steps.since.outputs.ts }}
+```
+
+(На macOS-раннере — `date -u -v-1H +%Y-%m-%dT%H:%M:%SZ`.)
 
 ## Кастомные источники URL через `urls-from`
 
@@ -111,7 +145,7 @@ jobs:
 Исходный мотив. Маппинг путь→URL — проектно-специфичный (Hugo permalinks, Eleventy `permalink:` в front-matter, кастомные роутеры), поэтому он живёт в вашем сниппете, а не в схеме конфига, которую indexnow вынужден тащить годами.
 
 ```yaml
-- uses: actions/checkout@v6
+- uses: actions/checkout@v7
   with:
     fetch-depth: 0          # нужно, чтобы `git diff <base>..HEAD` резолвился
 - uses: jtprogru/indexnow@v0

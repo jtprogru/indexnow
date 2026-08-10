@@ -62,6 +62,6 @@ indexnow key gen --write public/ -q
 
 - **Имя файла должно совпадать с ключом.** Если перенаправить stdout в файл руками (`indexnow key gen > public/mykey.txt`), поисковики его не найдут — они ищут `<key>.txt`. Используйте `--write` для файловой формы; имя строится из ключа автоматически.
 - **Trailing newline.** Hosted-файл пишется как `<key>\n`. Все известные IndexNow-эндпоинты тримят whitespace перед сравнением; newline — unix-конвенция.
-- **Не для CI.** `indexnow key gen` — одноразовый bootstrap-шаг, не per-push операция. Запуск в workflow перегенерил бы ключ на каждый build и инвалидировал submission'ы между прогонами. IndexNow Action осознанно не экспозит генерацию ключа как input — см. [Жизненный цикл ключа](../guides/key-lifecycle.md#4-wire-it-up--где-ключ-живт-в-момент-использования).
+- **Не для CI.** `indexnow key gen` — одноразовый bootstrap-шаг, не per-push операция. Запуск в workflow перегенерил бы ключ на каждый build и инвалидировал submission'ы между прогонами. IndexNow Action осознанно не экспозит генерацию ключа как input — см. [Жизненный цикл ключа](../guides/key-lifecycle.md#4-wire-it-up--где-ключ-живёт-в-момент-использования).
 - **Источник энтропии.** Только `crypto/rand`. Публичного `--seed` нет; тесты подменяют источник через package-private hook.
 - **`--write` не делает `mkdir -p`.** Если директория не существует, `key gen` падает. Создайте директорию заранее.

@@ -9,7 +9,7 @@ Use indexnow as a step in any GitHub Actions workflow. The action downloads the 
     sitemap: https://example.com/sitemap.xml
 ```
 
-Pin to a major (`@v0`) for floating-but-stable, a tag (`@v0.5.0`) for exactness, or a commit SHA for supply-chain paranoia.
+Pin to a major (`@v0`) for floating-but-stable — it is force-moved onto every new release — or to an exact tag (`@vX.Y.Z`, pick one from [Releases](https://github.com/jtprogru/indexnow/releases)) when you want the version frozen, or to a commit SHA for supply-chain paranoia.
 
 ## Supported runners
 
@@ -75,11 +75,33 @@ jobs:
         with:
           key: ${{ secrets.INDEXNOW_KEY }}
           sitemap: https://example.com/sitemap.xml
-          sitemap-since: ${{ github.event.before }}
           endpoint: bing,yandex
 ```
 
-`sitemap-since: ${{ github.event.before }}` is a string; the action passes it through to `--sitemap-since`, which parses RFC3339. For pushes that's the commit timestamp of the previous head — entries with older `<lastmod>` are skipped, the rest go out.
+Every push re-submits the whole sitemap. IndexNow is idempotent, so the cost is one HTTP call per endpoint — for most sites that is the right default.
+
+#### Submitting only what changed
+
+`sitemap-since` is passed straight through to `--sitemap-since`, which parses **RFC3339** and nothing else. `${{ github.event.before }}` is a *commit SHA*, not a timestamp — feeding it in fails the step with exit `2`. Derive a real timestamp in a prior step instead:
+
+```yaml
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0          # needed to resolve github.event.before
+      - id: since
+        run: echo "ts=$(git show -s --format=%cI '${{ github.event.before }}')" >> "$GITHUB_OUTPUT"
+      - uses: jtprogru/indexnow@v0
+        with:
+          key: ${{ secrets.INDEXNOW_KEY }}
+          sitemap: https://example.com/sitemap.xml
+          sitemap-since: ${{ steps.since.outputs.ts }}
+```
+
+`git show -s --format=%cI` emits strict ISO 8601 (`2026-08-10T12:00:00+03:00`), which `--sitemap-since` accepts. Sitemap entries with no `<lastmod>` still pass the filter — absent signal is treated as "may have changed".
 
 ### Hourly schedule
 
@@ -96,10 +118,21 @@ jobs:
         with:
           key: ${{ secrets.INDEXNOW_KEY }}
           sitemap: https://example.com/sitemap.xml
-          sitemap-since: ${{ format('{0}-{1}-{2}T{3}:00:00Z', …) }}
 ```
 
-If you don't want to fiddle with date arithmetic in YAML, drop `sitemap-since` — every hourly run re-submits the whole sitemap. IndexNow is idempotent; the cost is the HTTP call.
+Every hourly run re-submits the whole sitemap. To narrow it to the last hour, compute the cutoff in a prior step rather than in YAML expressions:
+
+```yaml
+      - id: since
+        run: echo "ts=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: jtprogru/indexnow@v0
+        with:
+          key: ${{ secrets.INDEXNOW_KEY }}
+          sitemap: https://example.com/sitemap.xml
+          sitemap-since: ${{ steps.since.outputs.ts }}
+```
+
+(On a macOS runner, `date -u -v-1H +%Y-%m-%dT%H:%M:%SZ`.)
 
 ## Custom URL sources via `urls-from`
 
@@ -112,7 +145,7 @@ Empty output is success — the step exits 0 with `submitted-count=0` and `submi
 The original motivation. The path-to-URL mapping is project-specific (Hugo permalinks, Eleventy `permalink:` front-matter, custom routers), so it lives in your snippet — not in a config schema indexnow has to maintain.
 
 ```yaml
-- uses: actions/checkout@v6
+- uses: actions/checkout@v7
   with:
     fetch-depth: 0          # required so `git diff <base>..HEAD` resolves
 - uses: jtprogru/indexnow@v0

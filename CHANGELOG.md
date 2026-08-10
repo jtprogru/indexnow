@@ -14,11 +14,15 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 
 ### Changed
 
--
+- Task runner switched from `Taskfile.yml` to a `Makefile`. Targets carry over one-to-one with `:` replaced by `-` (`task test:race` → `make test-race`, `task docs:build` → `make docs-build`); `make` with no argument prints the self-documenting target list. New `docs-deploy` (the `mkdocs gh-deploy` invocation CI was running inline) and `clean` targets. CI now calls the targets instead of repeating commands: `tests.yaml` runs `make test-race`, `docs.yaml` runs `make docs-install` + `make docs-deploy`. `lint.yaml` and `goreleaser.yaml` keep their respective actions — those handle tool install and caching and never duplicated a command in the first place.
+- Docs no longer name a concrete release. The exact-pin example in the Action guide used a real tag, which meant every release needed a documentation edit to stay truthful; it now shows the `@vX.Y.Z` placeholder and links to Releases. Everything else already used the floating `@v0`, which the alias workflow moves on each release. `contributing.md` records the convention so it does not creep back.
+- Docs (EN+RU) brought back in line with the code. `architecture.md` now shows the real tree — `internal/cli/keygen.go`, `internal/cli/verify.go`, `internal/config`, `internal/sitemap`, `action.yml` and `scripts/` were all missing — and documents what those packages own plus how endpoint fan-out is scheduled. `contributing.md` documents the release flow as it actually runs (annotated GPG-signed tag, the `goreleaser` and `release-major-alias` workflows, the `replace_existing_artifacts` retry caveat) and adds the MkDocs targets. `README.md` gained the sections it never had: comma-separated multi-endpoint fan-out, the yaml config file and `--config`, `INDEXNOW_USER_AGENT`, and the `--output` / `-q` / `-v` interplay.
+- `key-lifecycle.md` (EN+RU) no longer implies a repo-local `.indexnow.yaml` is discovered automatically. Only `$XDG_CONFIG_HOME/indexnow/config.yaml` is read on its own; a project config has to be passed via `--config` (CLI) or the Action's `config:` input.
 
 ### Fixed
 
--
+- Docs recipe `sitemap-since: ${{ github.event.before }}` was broken: `github.event.before` is a commit SHA, not a timestamp, and `--sitemap-since` parses RFC3339 only — copying the recipe failed the step with exit `2`. The push and schedule recipes now submit the whole sitemap by default (IndexNow is idempotent), with a separate block showing how to derive a real RFC3339 cutoff via `git show -s --format=%cI` or `date -u`. Affected `guides/github-action.md` and `getting-started.md` in both languages.
+- Anchors on the RU docs site. Python-Markdown's default slugify NFKD-normalizes headings and drops non-ASCII, so every Cyrillic heading collapsed to a truncated or empty id (`Типовые грабли` → `""`, `Кастомные источники URL через urls-from` → `url-urls-from`), breaking in-page links and permalinks across the whole RU site. `mkdocs.yml` now uses `pymdownx.slugs.slugify(case="lower")`, which preserves Unicode; ASCII headings slugify identically, so EN anchors are unchanged. The two RU cross-links that pointed at hand-written slugs were corrected to match.
 
 ## [0.7.1] — 2026-08-10
 

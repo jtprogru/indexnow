@@ -71,8 +71,17 @@ markdown_extensions:
   - footnotes
   - md_in_html
   - tables
+  # Unicode-aware slugs. Python-Markdown's default slugify NFKD-normalizes and
+  # drops non-ASCII, so every Cyrillic heading in docs/ru collapsed to an empty
+  # or truncated id ("Типовые грабли" → "", "Кастомные источники URL через
+  # urls-from" → "url-urls-from"), which broke in-page links and permalinks on
+  # the whole RU site. ASCII headings slugify identically under both, so EN
+  # anchors are unchanged.
   - toc:
       permalink: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true

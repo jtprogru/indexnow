@@ -32,10 +32,9 @@ jobs:
         with:
           key: ${{ secrets.INDEXNOW_KEY }}
           sitemap: https://example.com/sitemap.xml
-          sitemap-since: ${{ github.event.before }}
 ```
 
-Готово. `sitemap-since: ${{ github.event.before }}` значит «только URL'ы, у которых `<lastmod>` свежее предыдущего HEAD'а» — остальные пропускаются.
+Готово. Каждый push пересубмитит весь sitemap; IndexNow идемпотентен, цена — один HTTP-вызов. Если нужны только недавно изменённые записи, добавьте `sitemap-since` с **RFC3339-таймстемпом** — как его получить, см. [GitHub Action → рецепты](guides/github-action.md#на-каждый-push-в-content).
 
 → См. **[GitHub Action](guides/github-action.md)** — все inputs/outputs и ещё рецепты (по расписанию, после Hugo/Eleventy-сборки, явный список URL'ов).
 
