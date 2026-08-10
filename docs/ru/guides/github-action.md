@@ -9,7 +9,7 @@
     sitemap: https://example.com/sitemap.xml
 ```
 
-Пинуйте на мажор (`@v0`) для floating-but-stable, на тег (`@v0.5.0`) для точности, на SHA коммита — для параноидального supply-chain режима.
+Пинуйте на мажор (`@v0`) для floating-but-stable, на тег (`@v0.7.1`) для точности, на SHA коммита — для параноидального supply-chain режима.
 
 ## Поддерживаемые раннеры
 
@@ -145,7 +145,7 @@ jobs:
 Исходный мотив. Маппинг путь→URL — проектно-специфичный (Hugo permalinks, Eleventy `permalink:` в front-matter, кастомные роутеры), поэтому он живёт в вашем сниппете, а не в схеме конфига, которую indexnow вынужден тащить годами.
 
 ```yaml
-- uses: actions/checkout@v6
+- uses: actions/checkout@v7
   with:
     fetch-depth: 0          # нужно, чтобы `git diff <base>..HEAD` резолвился
 - uses: jtprogru/indexnow@v0

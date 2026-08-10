@@ -9,7 +9,7 @@ Use indexnow as a step in any GitHub Actions workflow. The action downloads the 
     sitemap: https://example.com/sitemap.xml
 ```
 
-Pin to a major (`@v0`) for floating-but-stable, a tag (`@v0.5.0`) for exactness, or a commit SHA for supply-chain paranoia.
+Pin to a major (`@v0`) for floating-but-stable, a tag (`@v0.7.1`) for exactness, or a commit SHA for supply-chain paranoia.
 
 ## Supported runners
 
@@ -145,7 +145,7 @@ Empty output is success — the step exits 0 with `submitted-count=0` and `submi
 The original motivation. The path-to-URL mapping is project-specific (Hugo permalinks, Eleventy `permalink:` front-matter, custom routers), so it lives in your snippet — not in a config schema indexnow has to maintain.
 
 ```yaml
-- uses: actions/checkout@v6
+- uses: actions/checkout@v7
   with:
     fetch-depth: 0          # required so `git diff <base>..HEAD` resolves
 - uses: jtprogru/indexnow@v0

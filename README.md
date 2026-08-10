@@ -18,7 +18,7 @@ GitHub Action и CLI для протокола [IndexNow](https://www.indexnow.o
 Если sitemap не подходит — соберите список URL'ов произвольным shell-сниппетом через `urls-from`:
 
 ```yaml
-- uses: actions/checkout@v6
+- uses: actions/checkout@v7
   with:
     fetch-depth: 0
 - uses: jtprogru/indexnow@v0
