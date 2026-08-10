@@ -24,13 +24,30 @@ CI зовёт те же таргеты (`make test-race`, `make docs-install`, `
 
 Conventional-ish, без жёсткого энфорсмента. Dependabot использует префиксы `chore(deps):` и `chore(ci):` — можно держать тот же стиль.
 
-## Релизы
+## Документация
 
-Мейнтейнеры тегают с `main`:
+Сайт — MkDocs Material, EN и RU собираются из `docs/en` и `docs/ru`. Языки держим синхронными: правка одного без второго — незавершённая правка.
 
 ```bash
-git tag vX.Y.Z
+make docs-install   # pip install -r docs/requirements.txt
+make docs-serve     # http://127.0.0.1:8000
+make docs-build     # mkdocs build --strict
+```
+
+Push в `main`, затрагивающий `docs/**` или `mkdocs.yml`, деплоит GitHub Pages.
+
+## Релизы
+
+Мейнтейнеры сначала фиксируют запись в CHANGELOG, потом тегают с `main` аннотированным GPG-подписанным тегом:
+
+```bash
+git tag -s vX.Y.Z -m "release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-GoReleaser собирает бинари, подписывает checksum и обновляет Homebrew tap.
+Push тега запускает два workflow:
+
+- `goreleaser` — собирает бинари под Linux / macOS / FreeBSD (amd64 и arm64), GPG-подписывает `checksums.txt`, публикует GitHub Release и обновляет Homebrew cask в `jtprogru/homebrew-tap`.
+- `release-major-alias` — force-двигает плавающие теги `vX` и `vX.Y` на новый релиз, чтобы `jtprogru/indexnow@v0` всегда указывал на свежий `v0.*`.
+
+Если release-job упал на середине и вы его перезапускаете: goreleaser сконфигурирован с `release.replace_existing_artifacts: true` — без этого повторный прогон на уже опубликованном теге падает с `422 already_exists` на каждом ассете.
