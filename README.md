@@ -113,7 +113,11 @@ indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 | `seznam` | `https://search.seznam.cz/indexnow`          |
 | `yep`    | `https://indexnow.yep.com/indexnow`          |
 
-По спеке достаточно одного — submission шарится с остальными участниками.
+По спеке достаточно одного — submission шарится с остальными участниками. Если нужна явная избыточность, `--endpoint` принимает список через запятую и уходит на все параллельно (алиасы и полные URL можно смешивать, дубликаты выкидываются, порядок сохраняется):
+
+```bash
+indexnow submit --endpoint bing,yandex https://example.com/post/1
+```
 
 #### Окружение
 
@@ -122,7 +126,31 @@ indexnow submit --sitemap sitemap.xml.gz --sitemap-since 2026-05-01T00:00:00Z
 | `INDEXNOW_KEY`           | ключ (валидируется по спеке: 8..128, `[A-Za-z0-9-]`) |
 | `INDEXNOW_HOST`          | хост сайта (например `example.com`); если пуст — выводится из первого URL |
 | `INDEXNOW_KEY_LOCATION`  | абсолютный URL к hosted key-файлу         |
-| `INDEXNOW_ENDPOINT`      | алиас или URL эндпоинта                   |
+| `INDEXNOW_ENDPOINT`      | алиас или URL эндпоинта (срабатывает, только если `--endpoint` оставлен в дефолте) |
+| `INDEXNOW_USER_AGENT`    | HTTP-заголовок `User-Agent` (default `indexnow/<version>`) |
+
+#### Конфиг-файл
+
+Те же значения можно держать в yaml. Без флага читается `$XDG_CONFIG_HOME/indexnow/config.yaml` (фоллбек — `$HOME/.config/indexnow/config.yaml`); отсутствие дефолтного файла не ошибка. Проектный конфиг в репозитории автоматически не находится — укажите его через `--config`:
+
+```yaml
+# .indexnow.yaml
+host: example.com
+key: abc123
+key_location: https://example.com/abc123.txt
+endpoint: bing
+user_agent: my-pipeline/2.3
+```
+
+```bash
+indexnow submit --config .indexnow.yaml https://example.com/post/1
+```
+
+Неизвестные ключи отвергаются, чтобы опечатки всплывали сразу. Приоритет: флаг > env > конфиг > встроенный дефолт.
+
+#### Вывод и логи
+
+`--output text|json` — формат stdout. `-q` глушит stdout целиком (сигнал только в exit-коде). `-v` пишет lifecycle и retry-события `slog`'ом в stderr, так что stdout остаётся чистым и `-v` спокойно комбинируется с `-q` и с `--output json`.
 
 #### Поведение по ошибкам
 
