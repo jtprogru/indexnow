@@ -18,7 +18,8 @@ The GoReleaser pipeline auto-generates per-release notes on the GitHub Releases 
 
 ### Fixed
 
--
+- Homebrew cask: the quarantine `postflight_steps` now comes from `hooks.post.install_steps` instead of `custom_block`. goreleaser 2.19 renders `custom_block` at the top of the cask, where `brew style` rejects it with `Cask/StanzaOrder`.
+- Homebrew cask: `desc` no longer starts with the cask name, which `Cask/Desc` rejects. It now matches the text the tap already shows.
 
 ## [0.7.2] — 2026-08-10
 
